@@ -1,7 +1,9 @@
 package edu.eci.dosw.DOSW_Library.core.service;
 
 import edu.eci.dosw.DOSW_Library.core.model.Book;
+import edu.eci.dosw.DOSW_Library.core.repository.BookRepository;
 import edu.eci.dosw.DOSW_Library.core.util.ValidationUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,9 +14,20 @@ import java.util.Map;
 @Service
 public class BookService {
 
+    private final BookRepository bookRepository;
+
     // Mapa de Libros (Libro y la cantidad de ejemplares que tiene)
     private final Map<String, Book> books = new HashMap<>();
     private final Map<String, Integer> bookCopies = new HashMap<>();
+
+    public BookService() {
+        this.bookRepository = null;
+    }
+
+    @Autowired
+    public BookService(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+    }
 
     public Book addBook(Book book, int copies) {
         ValidationUtil.validateNotNull(book, "Book");
@@ -24,17 +37,42 @@ public class BookService {
         if (copies <= 0) {
             throw new IllegalArgumentException("Number of copies must be greater than 0");
         }
+
+        if (bookRepository != null) {
+            Book toPersist = bookRepository.findById(book.getId())
+                    .map(existing -> {
+                        existing.setTitle(book.getTitle());
+                        existing.setAuthor(book.getAuthor());
+                        existing.setCopies(existing.getCopies() + copies);
+                        return existing;
+                    })
+                    .orElseGet(() -> {
+                        book.setCopies(copies);
+                        return book;
+                    });
+            return bookRepository.save(toPersist);
+        }
+
         books.put(book.getId(), book);
         bookCopies.put(book.getId(), bookCopies.getOrDefault(book.getId(), 0) + copies);
         return book;
     }
 
     public List<Book> getAllBooks() {
+        if (bookRepository != null) {
+            return bookRepository.findAll();
+        }
         return new ArrayList<>(books.values());
     }
 
     public Book getBookById(String id) {
         ValidationUtil.validateNotEmpty(id, "Book ID");
+
+        if (bookRepository != null) {
+            return bookRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Book not found with ID: " + id));
+        }
+
         Book book = books.get(id);
         if (book == null) {
             throw new IllegalArgumentException("Book not found with ID: " + id);
@@ -45,18 +83,38 @@ public class BookService {
     public void updateBookAvailability(String bookId, boolean available) {
         Book book = getBookById(bookId);
         book.setAvailable(available);
+        if (bookRepository != null) {
+            bookRepository.save(book);
+        }
     }
 
     public boolean isBookAvailable(String bookId) {
+        if (bookRepository != null) {
+            return bookRepository.findById(bookId)
+                    .map(book -> book.isAvailable() && book.getCopies() > 0)
+                    .orElse(false);
+        }
         Book book = books.get(bookId);
         return book != null && book.isAvailable() && bookCopies.getOrDefault(bookId, 0) > 0;
     }
 
     public int getAvailableCopies(String bookId) {
+        if (bookRepository != null) {
+            return bookRepository.findById(bookId).map(Book::getCopies).orElse(0);
+        }
         return bookCopies.getOrDefault(bookId, 0);
     }
 
     public void decrementCopies(String bookId) {
+        if (bookRepository != null) {
+            Book book = getBookById(bookId);
+            if (book.getCopies() > 0) {
+                book.setCopies(book.getCopies() - 1);
+                bookRepository.save(book);
+            }
+            return;
+        }
+
         int current = bookCopies.getOrDefault(bookId, 0);
         if (current > 0) {
             bookCopies.put(bookId, current - 1);
@@ -64,10 +122,20 @@ public class BookService {
     }
 
     public void incrementCopies(String bookId) {
+        if (bookRepository != null) {
+            Book book = getBookById(bookId);
+            book.setCopies(book.getCopies() + 1);
+            bookRepository.save(book);
+            return;
+        }
+
         bookCopies.put(bookId, bookCopies.getOrDefault(bookId, 0) + 1);
     }
 
     public boolean bookExists(String bookId) {
+        if (bookRepository != null) {
+            return bookRepository.existsById(bookId);
+        }
         return books.containsKey(bookId);
     }
 }
