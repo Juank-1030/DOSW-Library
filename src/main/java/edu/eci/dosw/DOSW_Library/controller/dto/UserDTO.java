@@ -1,30 +1,18 @@
 package edu.eci.dosw.DOSW_Library.controller.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "DTO para registrar un usuario")
 public class UserDTO {
+    @Schema(description = "Identificador unico del usuario", example = "U-200")
     private String id;
+
+    @Schema(description = "Nombre del usuario", example = "Juan Perez")
     private String name;
-
-    public UserDTO() {
-    }
-
-    public UserDTO(String id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
 }

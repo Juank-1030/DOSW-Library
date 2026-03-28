@@ -1,26 +1,24 @@
 package edu.eci.dosw.DOSW_Library.controller.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "DTO para registrar un libro y su cantidad de ejemplares")
 public class BookDTO {
+    @Schema(description = "Identificador unico del libro", example = "B-101")
     private String id;
+
+    @Schema(description = "Titulo del libro", example = "Clean Code")
     private String title;
+
+    @Schema(description = "Autor del libro", example = "Robert C. Martin")
     private String author;
+
+    @Schema(description = "Cantidad de ejemplares a registrar", example = "3")
     private int copies;
-
-    public BookDTO() {}
-
-    public BookDTO(String id, String title, String author, int copies) {
-        this.id = id;
-        this.title = title;
-        this.author = author;
-        this.copies = copies;
-    }
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getAuthor() { return author; }
-    public void setAuthor(String author) { this.author = author; }
-    public int getCopies() { return copies; }
-    public void setCopies(int copies) { this.copies = copies; }
 }
