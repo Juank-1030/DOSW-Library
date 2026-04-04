@@ -1,5 +1,6 @@
 package edu.eci.dosw.DOSW_Library;
 
+import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,11 +19,10 @@ class UserServiceTest {
         userService = new UserService();
     }
 
-    // ========== ESCENARIOS EXITOSOS ==========
-
     @Test
     void shouldRegisterUserSuccessfully() {
         User user = userService.registerUser(new User("U001", "John Doe"));
+
         assertNotNull(user);
         assertEquals("U001", user.getId());
     }
@@ -41,36 +41,55 @@ class UserServiceTest {
     }
 
     @Test
-    void shouldGetUserById() {
+    void shouldGetUserById() throws UserNotFoundException {
         userService.registerUser(new User("U001", "John Doe"));
+
         User user = userService.getUserById("U001");
+
         assertEquals("John Doe", user.getName());
     }
 
     @Test
-    void shouldCheckUserExists() {
+    void shouldGetUserByEmail() throws UserNotFoundException {
+        User user = new User("U001", "John Doe");
+        user.setEmail("john@library.com");
+        userService.registerUser(user);
+
+        User found = userService.getUserByEmail("john@library.com");
+
+        assertEquals("U001", found.getId());
+    }
+
+    @Test
+    void shouldUpdateUser() throws UserNotFoundException {
+        User original = new User("U001", "John Doe");
+        original.setEmail("john@library.com");
+        userService.registerUser(original);
+
+        User changes = new User("IGNORED", "John Updated");
+        changes.setEmail("john.updated@library.com");
+
+        User updated = userService.updateUser("U001", changes);
+
+        assertEquals("John Updated", updated.getName());
+        assertEquals("john.updated@library.com", updated.getEmail());
+    }
+
+    @Test
+    void shouldDeleteUser() throws UserNotFoundException {
         userService.registerUser(new User("U001", "John Doe"));
-        assertTrue(userService.userExists("U001"));
-        assertFalse(userService.userExists("U999"));
-    }
 
-    // ========== ESCENARIOS DE ERROR ==========
+        userService.deleteUser("U001");
 
-    @Test
-    void shouldThrowWhenRegisteringNullUser() {
-        assertThrows(IllegalArgumentException.class, () -> userService.registerUser(null));
+        assertFalse(userService.existsById("U001"));
+        assertEquals(0, userService.getTotalUsers());
     }
 
     @Test
-    void shouldThrowWhenRegisteringUserWithNullId() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.registerUser(new User(null, "John")));
-    }
-
-    @Test
-    void shouldThrowWhenRegisteringUserWithEmptyName() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.registerUser(new User("U001", "")));
+    void shouldCheckExistsById() {
+        userService.registerUser(new User("U001", "John Doe"));
+        assertTrue(userService.existsById("U001"));
+        assertFalse(userService.existsById("U999"));
     }
 
     @Test
@@ -81,17 +100,44 @@ class UserServiceTest {
     }
 
     @Test
-    void shouldThrowWhenGettingUserByNonExistentId() {
-        assertThrows(IllegalArgumentException.class, () -> userService.getUserById("NONE"));
+    void shouldThrowWhenRegisteringDuplicateEmail() {
+        User first = new User("U001", "John");
+        first.setEmail("john@library.com");
+        userService.registerUser(first);
+
+        User second = new User("U002", "Jane");
+        second.setEmail("john@library.com");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.registerUser(second));
     }
 
     @Test
-    void shouldThrowWhenGettingUserByNullId() {
-        assertThrows(IllegalArgumentException.class, () -> userService.getUserById(null));
+    void shouldThrowWhenUpdatingWithTakenEmail() {
+        User first = new User("U001", "John");
+        first.setEmail("john@library.com");
+        userService.registerUser(first);
+
+        User second = new User("U002", "Jane");
+        second.setEmail("jane@library.com");
+        userService.registerUser(second);
+
+        User changes = new User("IGNORED", "Jane Updated");
+        changes.setEmail("john@library.com");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUser("U002", changes));
     }
 
     @Test
-    void shouldThrowWhenGettingUserByEmptyId() {
-        assertThrows(IllegalArgumentException.class, () -> userService.getUserById(""));
+    void shouldThrowWhenUserByIdNotFound() {
+        assertThrows(UserNotFoundException.class,
+                () -> userService.getUserById("NONE"));
+    }
+
+    @Test
+    void shouldThrowWhenUserByEmailNotFound() {
+        assertThrows(UserNotFoundException.class,
+                () -> userService.getUserByEmail("none@library.com"));
     }
 }

@@ -1,12 +1,15 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,26 +20,29 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString
-@Entity
+@ToString(exclude = { "book", "user" })
+@EqualsAndHashCode(of = "id")
 @Table(name = "loans")
 public class Loan {
     @Id
     private String id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(nullable = false)
     private LocalDate loanDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private LoanStatus status;
 
+    @Column
     private LocalDate returnDate;
 
     public Loan(String id, Book book, User user, LocalDate loanDate) {
