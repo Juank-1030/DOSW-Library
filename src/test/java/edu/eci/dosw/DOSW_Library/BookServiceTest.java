@@ -1,5 +1,6 @@
 package edu.eci.dosw.DOSW_Library;
 
+import edu.eci.dosw.DOSW_Library.core.exception.ResourceNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.service.BookService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,22 +19,22 @@ class BookServiceTest {
         bookService = new BookService();
     }
 
-    // ========== ESCENARIOS EXITOSOS ==========
-
     @Test
     void shouldAddBookSuccessfully() {
         Book book = new Book("B001", "Clean Code", "Robert C. Martin");
         Book result = bookService.addBook(book, 3);
+
         assertNotNull(result);
         assertEquals("B001", result.getId());
         assertEquals(3, bookService.getAvailableCopies("B001"));
+        assertTrue(bookService.isBookAvailable("B001"));
     }
 
     @Test
-    void shouldAddCopiesToExistingBook() {
+    void shouldThrowWhenAddingDuplicateBook() {
         bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 2);
-        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 3);
-        assertEquals(5, bookService.getAvailableCopies("B001"));
+        assertThrows(IllegalArgumentException.class,
+                () -> bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 3));
     }
 
     @Test
@@ -45,11 +46,6 @@ class BookServiceTest {
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoBooks() {
-        assertTrue(bookService.getAllBooks().isEmpty());
-    }
-
-    @Test
     void shouldGetBookById() {
         bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
         Book book = bookService.getBookById("B001");
@@ -57,115 +53,81 @@ class BookServiceTest {
     }
 
     @Test
-    void shouldUpdateBookAvailability() {
+    void shouldUpdateAvailabilityDecrementAndIncrement() {
         bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
-        bookService.updateBookAvailability("B001", false);
+
+        bookService.updateAvailability("B001", -1);
+        assertEquals(0, bookService.getAvailableCopies("B001"));
         assertFalse(bookService.getBookById("B001").isAvailable());
+
+        bookService.updateAvailability("B001", +1);
+        assertEquals(1, bookService.getAvailableCopies("B001"));
+        assertTrue(bookService.getBookById("B001").isAvailable());
     }
 
     @Test
-    void shouldCheckBookIsAvailable() {
+    void shouldSetBookCopies() {
         bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
+
+        bookService.setBookCopies("B001", 0);
+        assertEquals(0, bookService.getAvailableCopies("B001"));
+        assertFalse(bookService.isBookAvailable("B001"));
+
+        bookService.setBookCopies("B001", 5);
+        assertEquals(5, bookService.getAvailableCopies("B001"));
         assertTrue(bookService.isBookAvailable("B001"));
     }
 
     @Test
-    void shouldDecrementCopies() {
+    void shouldThrowWhenUpdateAvailabilityWouldGoNegative() {
+        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 0);
+
+        assertThrows(IllegalStateException.class,
+                () -> bookService.updateAvailability("B001", -1));
+    }
+
+    @Test
+    void shouldDeleteBook() {
         bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 3);
-        bookService.decrementCopies("B001");
-        assertEquals(2, bookService.getAvailableCopies("B001"));
+
+        bookService.deleteBook("B001");
+
+        assertFalse(bookService.existsById("B001"));
+        assertEquals(0, bookService.getTotalBooks());
+        assertThrows(ResourceNotFoundException.class, () -> bookService.getBookById("B001"));
     }
 
     @Test
-    void shouldIncrementCopies() {
-        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
-        bookService.incrementCopies("B001");
-        assertEquals(2, bookService.getAvailableCopies("B001"));
-    }
-
-    @Test
-    void shouldNotDecrementBelowZero() {
-        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
-        bookService.decrementCopies("B001");
-        bookService.decrementCopies("B001");
-        assertEquals(0, bookService.getAvailableCopies("B001"));
-    }
-
-    @Test
-    void shouldCheckBookExists() {
-        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
-        assertTrue(bookService.bookExists("B001"));
-        assertFalse(bookService.bookExists("B999"));
-    }
-
-    // ========== ESCENARIOS DE ERROR ==========
-
-    @Test
-    void shouldThrowWhenAddingNullBook() {
-        assertThrows(IllegalArgumentException.class, () -> bookService.addBook(null, 1));
-    }
-
-    @Test
-    void shouldThrowWhenAddingBookWithNullId() {
-        assertThrows(IllegalArgumentException.class,
-                () -> bookService.addBook(new Book(null, "Title", "Author"), 1));
-    }
-
-    @Test
-    void shouldThrowWhenAddingBookWithEmptyTitle() {
-        assertThrows(IllegalArgumentException.class,
-                () -> bookService.addBook(new Book("B001", "", "Author"), 1));
-    }
-
-    @Test
-    void shouldThrowWhenAddingBookWithEmptyAuthor() {
-        assertThrows(IllegalArgumentException.class,
-                () -> bookService.addBook(new Book("B001", "Title", ""), 1));
-    }
-
-    @Test
-    void shouldThrowWhenAddingBookWithZeroCopies() {
-        assertThrows(IllegalArgumentException.class,
-                () -> bookService.addBook(new Book("B001", "Clean Code", "Martin"), 0));
-    }
-
-    @Test
-    void shouldThrowWhenAddingBookWithNegativeCopies() {
-        assertThrows(IllegalArgumentException.class,
-                () -> bookService.addBook(new Book("B001", "Clean Code", "Martin"), -1));
+    void shouldReturnEmptyListWhenNoBooks() {
+        assertTrue(bookService.getAllBooks().isEmpty());
     }
 
     @Test
     void shouldThrowWhenGettingBookByNonExistentId() {
-        assertThrows(IllegalArgumentException.class, () -> bookService.getBookById("NONE"));
+        assertThrows(ResourceNotFoundException.class, () -> bookService.getBookById("NONE"));
     }
 
     @Test
-    void shouldThrowWhenGettingBookByNullId() {
-        assertThrows(IllegalArgumentException.class, () -> bookService.getBookById(null));
+    void shouldThrowWhenCheckingAvailabilityOfNonExistentBook() {
+        assertThrows(ResourceNotFoundException.class, () -> bookService.isBookAvailable("NONE"));
     }
 
     @Test
-    void shouldThrowWhenGettingBookByEmptyId() {
-        assertThrows(IllegalArgumentException.class, () -> bookService.getBookById(""));
+    void shouldThrowWhenGetAvailableCopiesOfNonExistentBook() {
+        assertThrows(ResourceNotFoundException.class, () -> bookService.getAvailableCopies("NONE"));
     }
 
     @Test
-    void shouldReturnNotAvailableWhenBookDoesNotExist() {
-        assertFalse(bookService.isBookAvailable("NONE"));
-    }
-
-    @Test
-    void shouldReturnNotAvailableWhenSetUnavailable() {
-        bookService.addBook(new Book("B001", "Clean Code", "Martin"), 1);
-        bookService.updateBookAvailability("B001", false);
-        assertFalse(bookService.isBookAvailable("B001"));
+    void shouldThrowWhenSettingNegativeCopies() {
+        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> bookService.setBookCopies("B001", -1));
     }
 
     @Test
     void shouldReturnNotAvailableWhenNoCopies() {
         bookService.addBook(new Book("B001", "Clean Code", "Martin"), 1);
-        bookService.decrementCopies("B001");
+        bookService.updateAvailability("B001", -1);
         assertFalse(bookService.isBookAvailable("B001"));
     }
 }

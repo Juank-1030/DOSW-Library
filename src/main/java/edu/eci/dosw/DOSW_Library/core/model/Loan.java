@@ -1,17 +1,49 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
 import java.time.LocalDate;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@ToString(exclude = { "book", "user" })
+@EqualsAndHashCode(of = "id")
+@Table(name = "loans")
 public class Loan {
+    @Id
     private String id;
-    private Book book;
-    private User user;
-    private LocalDate loanDate;
-    private LoanStatus status;
-    private LocalDate returnDate;
 
-    public Loan() {
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id", nullable = false)
+    private Book book;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false)
+    private LocalDate loanDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LoanStatus status;
+
+    @Column
+    private LocalDate returnDate;
 
     public Loan(String id, Book book, User user, LocalDate loanDate) {
         this.id = id;
@@ -20,59 +52,5 @@ public class Loan {
         this.loanDate = loanDate;
         this.status = LoanStatus.ACTIVE;
         this.returnDate = null;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public Book getBook() {
-        return book;
-    }
-
-    public void setBook(Book book) {
-        this.book = book;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public LocalDate getLoanDate() {
-        return loanDate;
-    }
-
-    public void setLoanDate(LocalDate loanDate) {
-        this.loanDate = loanDate;
-    }
-
-    public LoanStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(LoanStatus status) {
-        this.status = status;
-    }
-
-    public LocalDate getReturnDate() {
-        return returnDate;
-    }
-
-    public void setReturnDate(LocalDate returnDate) {
-        this.returnDate = returnDate;
-    }
-
-    @Override
-    public String toString() {
-        return "Loan{id='" + id + "', book=" + book + ", user=" + user +
-                ", loanDate=" + loanDate + ", status=" + status + ", returnDate=" + returnDate + "}";
     }
 }
