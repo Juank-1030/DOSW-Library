@@ -4086,6 +4086,32 @@ PASO 4: PATCH /api/books/BK-NEW-001/inventory
 
 ---
 
+## 🎯 Testing con Swagger UI (OpenAPI 3.0)
+
+**SÍ, puedes probar los 4 escenarios:** `https://localhost:8443/swagger-ui.html`
+
+### Escenario 1: Sin Token
+- GET /api/books → "Try it out" → **NO hagas click Authorize** → "Execute"
+- Resultado: `HTTP 401 Unauthorized`
+
+### Escenario 2: Token Inválido
+- Click "Authorize" → Pega `Bearer invalid.token` → GET /api/books → "Execute"
+- Resultado: `HTTP 401 Unauthorized`
+
+### Escenario 3: Rol Incorrecto
+- POST /auth/login: `{"username": "user", "password": "user1234"}` → Copia token
+- "Authorize" con token USER → POST /api/books → "Execute"
+- Resultado: `HTTP 403 Forbidden` ❌
+
+### Escenario 4: Permisos Correctos
+- POST /auth/login: `{"username": "admin", "password": "admin1234"}` → Copia token
+- "Authorize" con token LIBRARIAN → POST /api/books → "Execute"
+- Resultado: `HTTP 201 Created` ✅
+
+✅ **Todos los 4 escenarios se pueden probar en Swagger UI.**
+
+---
+
 ## �📝 IMPLEMENTACIÓN TÉCNICA: Bearer Token Requirements ✅
 
 **REQUISITO:** A partir de este momento, el cliente debe incluir el token en cada petición en el header: `Authorization: Bearer <token>`
