@@ -34,10 +34,8 @@ public class RegisterRequest {
     @JsonProperty("password")
     private String password;
 
-    @Schema(description = "Rol del usuario (USER por defecto, solo LIBRARIAN puede crear LIBRARIAN)", 
-            example = "USER", 
-            allowableValues = { "USER", "LIBRARIAN" }, 
-            required = false)
+    @Schema(description = "Rol del usuario (USER por defecto, solo LIBRARIAN puede crear LIBRARIAN)", example = "USER", allowableValues = {
+            "USER", "LIBRARIAN" }, required = false)
     @JsonProperty("role")
     private String role;
 

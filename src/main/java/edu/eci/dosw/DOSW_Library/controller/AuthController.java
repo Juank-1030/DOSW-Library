@@ -205,7 +205,8 @@ public class AuthController {
          * <li>Recibe datos de registro (username, password, rol, nombre, email)</li>
          * <li>Valida que el username no exista</li>
          * <li>Encripta la contraseña con BCrypt</li>
-         * <li>Crea el usuario con rol USER por defecto (LIBRARIAN requiere permisos)</li>
+         * <li>Crea el usuario con rol USER por defecto (LIBRARIAN requiere
+         * permisos)</li>
          * <li>Retorna información del usuario registrado</li>
          * </ol>
          * 
@@ -236,7 +237,8 @@ public class AuthController {
          * </pre>
          * 
          * <p>
-         * <b>Ejemplo: Registrar usuario LIBRARIAN (solo si autenticado como LIBRARIAN)</b>
+         * <b>Ejemplo: Registrar usuario LIBRARIAN (solo si autenticado como
+         * LIBRARIAN)</b>
          * </p>
          * 
          * <pre>

@@ -101,7 +101,8 @@ public class AuthService {
         /**
          * Registra un nuevo usuario en el sistema.
          * 
-         * @param registerRequest Datos de registro (username, password, rol, nombre, email)
+         * @param registerRequest Datos de registro (username, password, rol, nombre,
+         *                        email)
          * @return AuthResponse con información del usuario registrado
          * @throws IllegalArgumentException Si el usuario o email ya existe
          */
@@ -125,7 +126,8 @@ public class AuthService {
                                 .username(registerRequest.getUsername())
                                 .password(passwordEncoder.encode(registerRequest.getPassword())) // Encriptar contraseña
                                 .role(role)
-                                .name(registerRequest.getName() != null ? registerRequest.getName() : registerRequest.getUsername())
+                                .name(registerRequest.getName() != null ? registerRequest.getName()
+                                                : registerRequest.getUsername())
                                 .email(registerRequest.getEmail())
                                 .build();
 
