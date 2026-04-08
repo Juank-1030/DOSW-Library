@@ -57,6 +57,26 @@ public class UserValidator {
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
+    /**
+     * Longitud mínima permitida para username.
+     */
+    private static final int MIN_USERNAME_LENGTH = 3;
+
+    /**
+     * Longitud máxima permitida para username.
+     */
+    private static final int MAX_USERNAME_LENGTH = 50;
+
+    /**
+     * Longitud mínima permitida para password.
+     */
+    private static final int MIN_PASSWORD_LENGTH = 6;
+
+    /**
+     * Longitud máxima permitida para password.
+     */
+    private static final int MAX_PASSWORD_LENGTH = 255;
+
     // ============================================
     // VALIDACIÓN COMPLETA DE USUARIO
     // ============================================
@@ -74,6 +94,12 @@ public class UserValidator {
      * <li>Nombre no puede ser nulo o vacío</li>
      * <li>Nombre debe tener longitud entre 1 y 100 caracteres</li>
      * <li>Email debe tener formato válido (si está presente)</li>
+     * <li>Username debe tener longitud entre 3 y 50 caracteres (si está
+     * presente)</li>
+     * <li>Password debe tener longitud entre 6 y 255 caracteres (si está
+     * presente)</li>
+     * <li>Role debe ser válido: ADMIN, BIBLIOTECARIO, USUARIO (si está
+     * presente)</li>
      * </ul>
      * 
      * @param user Usuario a validar
@@ -99,6 +125,21 @@ public class UserValidator {
         // Validar email (si está presente)
         if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
             errors.addAll(validateEmail(user.getEmail()));
+        }
+
+        // Validar username (si está presente)
+        if (user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
+            errors.addAll(validateUsername(user.getUsername()));
+        }
+
+        // Validar password (si está presente)
+        if (user.getPassword() != null && !user.getPassword().trim().isEmpty()) {
+            errors.addAll(validatePassword(user.getPassword()));
+        }
+
+        // Validar role (si está presente)
+        if (user.getRole() != null && !user.getRole().trim().isEmpty()) {
+            errors.addAll(validateRole(user.getRole()));
         }
 
         if (errors.isEmpty()) {
@@ -279,5 +320,131 @@ public class UserValidator {
         logger.debug("Email '{}' is valid? {}", email, valid);
 
         return valid;
+    }
+
+    /**
+     * Valida el username del usuario.
+     * 
+     * <p>
+     * <b>Reglas:</b>
+     * </p>
+     * <ul>
+     * <li>No puede ser nulo</li>
+     * <li>No puede estar vacío</li>
+     * <li>Longitud entre 3 y 50 caracteres</li>
+     * <li>Solo permite letras, números, guiones y guiones bajos</li>
+     * </ul>
+     * 
+     * @param username Username del usuario
+     * @return Lista de errores de validación
+     */
+    public List<String> validateUsername(String username) {
+        List<String> errors = new ArrayList<>();
+
+        if (username == null) {
+            errors.add("Username cannot be null");
+            return errors;
+        }
+
+        String trimmedUsername = username.trim();
+
+        if (trimmedUsername.isEmpty()) {
+            errors.add("Username cannot be empty");
+            return errors;
+        }
+
+        if (trimmedUsername.length() < MIN_USERNAME_LENGTH) {
+            errors.add(String.format("Username must be at least %d characters long", MIN_USERNAME_LENGTH));
+        }
+
+        if (trimmedUsername.length() > MAX_USERNAME_LENGTH) {
+            errors.add(String.format("Username must not exceed %d characters", MAX_USERNAME_LENGTH));
+        }
+
+        if (!trimmedUsername.matches("^[A-Za-z0-9-_]+$")) {
+            errors.add("Username must contain only letters, numbers, hyphens and underscores");
+        }
+
+        return errors;
+    }
+
+    /**
+     * Valida la contraseña del usuario.
+     * 
+     * <p>
+     * <b>Reglas:</b>
+     * </p>
+     * <ul>
+     * <li>No puede ser nula</li>
+     * <li>No puede estar vacía</li>
+     * <li>Longitud entre 6 y 255 caracteres</li>
+     * <li>Se recomienda contener mayúsculas, minúsculas, números y caracteres
+     * especiales</li>
+     * </ul>
+     * 
+     * @param password Password del usuario
+     * @return Lista de errores de validación
+     */
+    public List<String> validatePassword(String password) {
+        List<String> errors = new ArrayList<>();
+
+        if (password == null) {
+            errors.add("Password cannot be null");
+            return errors;
+        }
+
+        String trimmedPassword = password.trim();
+
+        if (trimmedPassword.isEmpty()) {
+            errors.add("Password cannot be empty");
+            return errors;
+        }
+
+        if (trimmedPassword.length() < MIN_PASSWORD_LENGTH) {
+            errors.add(String.format("Password must be at least %d characters long", MIN_PASSWORD_LENGTH));
+        }
+
+        if (trimmedPassword.length() > MAX_PASSWORD_LENGTH) {
+            errors.add(String.format("Password must not exceed %d characters", MAX_PASSWORD_LENGTH));
+        }
+
+        return errors;
+    }
+
+    /**
+     * Valida el rol del usuario.
+     * 
+     * <p>
+     * <b>Roles válidos:</b>
+     * </p>
+     * <ul>
+     * <li>ADMIN - Administrador del sistema</li>
+     * <li>BIBLIOTECARIO - Personal de biblioteca</li>
+     * <li>USUARIO - Usuario normal</li>
+     * </ul>
+     * 
+     * @param role Role del usuario
+     * @return Lista de errores de validación
+     */
+    public List<String> validateRole(String role) {
+        List<String> errors = new ArrayList<>();
+
+        if (role == null) {
+            errors.add("Role cannot be null");
+            return errors;
+        }
+
+        String trimmedRole = role.trim();
+
+        if (trimmedRole.isEmpty()) {
+            errors.add("Role cannot be empty");
+            return errors;
+        }
+
+        if (!trimmedRole.matches("^(ADMIN|BIBLIOTECARIO|USUARIO)$")) {
+            errors.add("Role must be one of: ADMIN, BIBLIOTECARIO, USUARIO");
+        }
+
+        return errors;
     }
 }

@@ -1,9 +1,11 @@
-package edu.eci.dosw.DOSW_Library.controller.mapper;
+package edu.eci.dosw.DOSW_Library.persistence.mapper;
 
 import edu.eci.dosw.DOSW_Library.controller.dto.CreateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UpdateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UserDTO;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.persistence.entity.UserEntity;
+import edu.eci.dosw.DOSW_Library.persistence.entity.UserRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -12,45 +14,68 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper para convertir entre entidades User y DTOs relacionados.
+ * Mapper consolidado para todas las transformaciones de User.
  * 
  * <p>
  * <b>Responsabilidades:</b>
  * </p>
  * <ul>
- * <li>Convertir User (Entity) → UserDTO (Response)</li>
- * <li>Convertir CreateUserDTO (Request) → User (Entity)</li>
- * <li>Aplicar actualizaciones desde UpdateUserDTO</li>
- * <li>Logging de conversiones para auditoría</li>
+ * <li>✅ UserEntity ↔ User (persistencia ↔ dominio)</li>
+ * <li>✅ User ↔ UserDTO (dominio ↔ API Response)</li>
+ * <li>✅ CreateUserDTO → User (API Request → dominio)</li>
+ * <li>✅ UpdateUserDTO → User updates (actualizaciones parciales)</li>
  * </ul>
  * 
  * @author DOSW Company
- * @version 2.0 - Con Logging
+ * @version 3.0 - Mapper consolidado (sin controller/mapper)
  */
 @Component
-public class UserMapper {
+public class UserPersistenceMapper {
 
-    private static final Logger logger = LoggerFactory.getLogger(UserMapper.class);
+    private static final Logger logger = LoggerFactory.getLogger(UserPersistenceMapper.class);
 
     // ============================================
-    // ENTITY → DTO (Para respuestas)
+    // PERSISTENCE LAYER (UserEntity ↔ User)
+    // ============================================
+
+    public User toDomain(UserEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        return User.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .email(entity.getEmail())
+                .username(entity.getUsername())
+                .password(entity.getPassword())
+                .role(entity.getRole().name())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    public UserEntity toEntity(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        return UserEntity.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .password(user.getPassword())
+                .role(UserRole.valueOf(user.getRole()))
+                .build();
+    }
+
+    // ============================================
+    // API LAYER (User ↔ UserDTO)
     // ============================================
 
     /**
-     * Convierte una entidad User a UserDTO para respuestas HTTP.
-     * 
-     * <p>
-     * <b>Usado en:</b>
-     * </p>
-     * <ul>
-     * <li>GET /api/users/{id}</li>
-     * <li>GET /api/users</li>
-     * <li>POST /api/users - Respuesta después de crear</li>
-     * <li>Dentro de LoanDTO (información del usuario)</li>
-     * </ul>
-     * 
-     * @param user Entidad User a convertir
-     * @return UserDTO con los datos del usuario, o null si user es null
+     * User → UserDTO (NO expone credenciales por seguridad)
      */
     public UserDTO toDTO(User user) {
         if (user == null) {
@@ -73,12 +98,6 @@ public class UserMapper {
         return dto;
     }
 
-    /**
-     * Convierte una lista de entidades User a lista de UserDTOs.
-     * 
-     * @param users Lista de entidades User
-     * @return Lista de UserDTOs, o lista vacía si users es null
-     */
     public List<UserDTO> toDTOList(List<User> users) {
         if (users == null) {
             logger.warn("Attempted to convert null User list to DTO list");
@@ -97,21 +116,11 @@ public class UserMapper {
     }
 
     // ============================================
-    // DTO → ENTITY (Para crear nuevos usuarios)
+    // DTO → ENTITY (API Request → Dominio)
     // ============================================
 
     /**
-     * Convierte CreateUserDTO a entidad User para persistencia.
-     * 
-     * <p>
-     * <b>Usado en:</b>
-     * </p>
-     * <ul>
-     * <li>POST /api/users - Registrar nuevo usuario</li>
-     * </ul>
-     * 
-     * @param createDTO DTO con datos para crear el usuario
-     * @return Nueva entidad User lista para persistir, o null si createDTO es null
+     * CreateUserDTO → User (para registro)
      */
     public User toEntity(CreateUserDTO createDTO) {
         if (createDTO == null) {
@@ -119,16 +128,23 @@ public class UserMapper {
             return null;
         }
 
-        logger.debug("Converting CreateUserDTO to User | ID: {} | Name: '{}'",
+        logger.debug("Converting CreateUserDTO to User | ID: {} | Username: '{}'",
                 createDTO.getId(),
-                createDTO.getName());
+                createDTO.getUsername());
 
-        User user = new User(createDTO.getId(), createDTO.getName());
-        user.setEmail(createDTO.getEmail());
+        User user = User.builder()
+                .id(createDTO.getId())
+                .name(createDTO.getName())
+                .email(createDTO.getEmail())
+                .username(createDTO.getUsername())
+                .password(createDTO.getPassword())
+                .role(createDTO.getRole() != null ? createDTO.getRole() : "USUARIO")
+                .build();
 
-        logger.info("User entity created from DTO | ID: {} | Email: {}",
+        logger.info("User entity created from DTO | ID: {} | Username: {} | Role: {}",
                 user.getId(),
-                user.getEmail());
+                user.getUsername(),
+                user.getRole());
 
         return user;
     }
@@ -138,41 +154,7 @@ public class UserMapper {
     // ============================================
 
     /**
-     * Actualiza una entidad User con datos de UpdateUserDTO.
-     * 
-     * <p>
-     * <b>Campos actualizables:</b>
-     * </p>
-     * <ul>
-     * <li>name - Nombre del usuario</li>
-     * <li>email - Email del usuario</li>
-     * </ul>
-     * 
-     * <p>
-     * <b>Campos NO actualizables:</b>
-     * </p>
-     * <ul>
-     * <li>id - El identificador es inmutable</li>
-     * </ul>
-     * 
-     * <p>
-     * <b>Estrategia:</b> Solo actualiza campos no nulos del DTO
-     * </p>
-     * 
-     * <p>
-     * <b>Logging:</b>
-     * </p>
-     * 
-     * <pre>
-     * DEBUG - "Updating User USR-001 with DTO data"
-     * DEBUG - "Updating name: 'John Doe' -> 'Jane Doe'"
-     * DEBUG - "Updating email: 'john@example.com' -> 'jane@example.com'"
-     * INFO  - "User USR-001 updated successfully"
-     * </pre>
-     * 
-     * @param user      Entidad existente a actualizar
-     * @param updateDTO DTO con datos a actualizar (campos opcionales)
-     * @throws IllegalArgumentException Si user es null
+     * Actualiza User con datos de UpdateUserDTO
      */
     public void updateEntity(User user, UpdateUserDTO updateDTO) {
         if (user == null) {
@@ -189,14 +171,12 @@ public class UserMapper {
 
         boolean hasChanges = false;
 
-        // Actualizar nombre si está presente
         if (updateDTO.getName() != null && !updateDTO.getName().equals(user.getName())) {
             logger.debug("Updating name: '{}' -> '{}'", user.getName(), updateDTO.getName());
             user.setName(updateDTO.getName());
             hasChanges = true;
         }
 
-        // Actualizar email si está presente
         if (updateDTO.getEmail() != null && !updateDTO.getEmail().equals(user.getEmail())) {
             logger.debug("Updating email: '{}' -> '{}'", user.getEmail(), updateDTO.getEmail());
             user.setEmail(updateDTO.getEmail());

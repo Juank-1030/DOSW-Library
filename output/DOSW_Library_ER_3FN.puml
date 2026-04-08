@@ -1,0 +1,50 @@
+@startuml DOSW_Library_ER_3FN
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+skinparam arrowColor #333333
+skinparam shadowing false
+
+title DOSW Library - Modelo Entidad Relacion Normalizado a 3FN
+
+entity User {
+    *id : VARCHAR(20) <<PK>>
+    --
+    *name : VARCHAR(100)
+    *email : VARCHAR(100) <<UNIQUE>>
+    *username : VARCHAR(50) <<UNIQUE>>
+    *password : VARCHAR(255)
+    *role : ENUM('BIBLIOTECARIO', 'USUARIO')
+    *created_at : TIMESTAMP
+    *updated_at : TIMESTAMP
+}
+
+entity Book {
+    *id : VARCHAR(20) <<PK>>
+    --
+    *title : VARCHAR(200)
+    *author : VARCHAR(100)
+    *copies : INT <<CHECK: > 0>>
+    *available : INT <<CHECK: >= 0 AND <= copies>>
+    *created_at : TIMESTAMP
+    *updated_at : TIMESTAMP
+}
+
+entity Loan {
+    *id : VARCHAR(20) <<PK>>
+    --
+    *user_id : VARCHAR(20) <<FK>>
+    *book_id : VARCHAR(20) <<FK>>
+    *loan_date : TIMESTAMP
+    *due_date : TIMESTAMP
+    return_date : TIMESTAMP
+    *status : ENUM('ACTIVE', 'RETURNED')
+    *created_at : TIMESTAMP
+    *updated_at : TIMESTAMP
+}
+
+User ||--o{ Loan : solicita
+Book ||--o{ Loan : es_prestado
+
+@enduml

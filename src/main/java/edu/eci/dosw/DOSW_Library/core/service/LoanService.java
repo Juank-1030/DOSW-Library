@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -165,7 +165,7 @@ public class LoanService {
         // PASO 6: Crear préstamo
         String loanId = generateLoanId();
 
-        Loan loan = new Loan(loanId, book, user, LocalDate.now());
+        Loan loan = new Loan(loanId, book, user, LocalDateTime.now());
         loan.setStatus(LoanStatus.ACTIVE);
 
         loanRepository.add(loan);
@@ -285,7 +285,7 @@ public class LoanService {
 
         // Actualizar estado
         loan.setStatus(LoanStatus.RETURNED);
-        loan.setReturnDate(LocalDate.now());
+        loan.setReturnDate(LocalDateTime.now());
 
         // Devolver copia al inventario
         bookService.updateAvailability(loan.getBook().getId(), +1);

@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -211,10 +211,10 @@ public class LoanValidator {
      * <li>No puede ser fecha futura</li>
      * </ul>
      * 
-     * @param loanDate Fecha de préstamo
+     * @param loanDate Fecha de préstamo (LocalDateTime)
      * @return Lista de errores de validación
      */
-    public List<String> validateLoanDate(LocalDate loanDate) {
+    public List<String> validateLoanDate(LocalDateTime loanDate) {
         List<String> errors = new ArrayList<>();
 
         if (loanDate == null) {
@@ -222,7 +222,7 @@ public class LoanValidator {
             return errors;
         }
 
-        if (loanDate.isAfter(LocalDate.now())) {
+        if (loanDate.isAfter(LocalDateTime.now())) {
             errors.add("Loan date cannot be in the future");
         }
 
@@ -240,11 +240,11 @@ public class LoanValidator {
      * <li>No puede ser fecha futura</li>
      * </ul>
      * 
-     * @param loanDate   Fecha de préstamo
-     * @param returnDate Fecha de devolución
+     * @param loanDate   Fecha de préstamo (LocalDateTime)
+     * @param returnDate Fecha de devolución (LocalDateTime)
      * @return Lista de errores de validación
      */
-    public List<String> validateReturnDate(LocalDate loanDate, LocalDate returnDate) {
+    public List<String> validateReturnDate(LocalDateTime loanDate, LocalDateTime returnDate) {
         List<String> errors = new ArrayList<>();
 
         if (returnDate == null) {
@@ -255,7 +255,7 @@ public class LoanValidator {
             errors.add("Return date cannot be before loan date");
         }
 
-        if (returnDate.isAfter(LocalDate.now())) {
+        if (returnDate.isAfter(LocalDateTime.now())) {
             errors.add("Return date cannot be in the future");
         }
 
@@ -350,8 +350,8 @@ public class LoanValidator {
             return false;
         }
 
-        LocalDate dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);
-        boolean overdue = LocalDate.now().isAfter(dueDate);
+        LocalDateTime dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);
+        boolean overdue = LocalDateTime.now().isAfter(dueDate);
 
         logger.debug("Loan {} is overdue? {} (loan date: {}, due date: {})",
                 loan.getId(),
@@ -373,8 +373,8 @@ public class LoanValidator {
             return 0;
         }
 
-        LocalDate dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);
-        long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), dueDate);
+        LocalDateTime dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);
+        long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(LocalDateTime.now(), dueDate);
 
         logger.debug("Loan {} has {} days remaining", loan.getId(), daysRemaining);
 
