@@ -12,7 +12,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * </p>
  * <ul>
  * <li>@SpringBootApplication - Auto-configuración de Spring Boot</li>
- * <li>@EnableJpaRepositories - Habilita escaneo explícito de repositorios JPA</li>
+ * <li>@EnableJpaRepositories - Habilita escaneo explícito de repositorios
+ * JPA</li>
  * </ul>
  */
 @SpringBootApplication
