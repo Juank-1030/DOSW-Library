@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class BookServiceTest {
 
     private BookService bookService;
-    
+
     @Mock
     private BookRepository bookRepository;
 
@@ -164,7 +164,7 @@ class BookServiceTest {
     void shouldReturnNotAvailableWhenNoCopies() {
         Book book = new Book("B001", "Clean Code", "Robert C. Martin");
         book.setAvailable(0);
-        
+
         when(bookRepository.findById("B001")).thenReturn(Optional.of(book));
         assertFalse(bookService.isBookAvailable("B001"));
     }

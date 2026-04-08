@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class UserServiceTest {
 
     private UserService userService;
-    
+
     @Mock
     private UserRepository userRepository;
 
@@ -86,7 +86,7 @@ class UserServiceTest {
     void shouldUpdateUser() throws UserNotFoundException {
         User original = new User("U001", "John Doe");
         original.setEmail("john@library.com");
-        
+
         User changes = new User("IGNORED", "John Updated");
         changes.setEmail("john.updated@library.com");
 
@@ -114,7 +114,7 @@ class UserServiceTest {
     void shouldCheckExistsById() {
         when(userRepository.existsById("U001")).thenReturn(true);
         when(userRepository.existsById("U999")).thenReturn(false);
-        
+
         assertTrue(userService.existsById("U001"));
         assertFalse(userService.existsById("U999"));
     }
