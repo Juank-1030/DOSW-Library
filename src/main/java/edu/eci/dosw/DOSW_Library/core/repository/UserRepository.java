@@ -62,6 +62,22 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmail(String email);
 
     /**
+     * Busca un usuario por su username (para autenticación).
+     * 
+     * <p>
+     * <b>SQL generado automáticamente:</b>
+     * </p>
+     * 
+     * <pre>
+     * SELECT * FROM users WHERE username = ?
+     * </pre>
+     * 
+     * @param username Username del usuario
+     * @return Optional con el usuario si existe
+     */
+    Optional<User> findByUsername(String username);
+
+    /**
      * Busca usuarios cuyo nombre contenga un texto.
      * 
      * <p>
@@ -193,6 +209,18 @@ public interface UserRepository extends JpaRepository<User, String> {
      * @return true si existe, false en caso contrario
      */
     boolean existsByEmail(String email);
+
+    /**
+     * Verifica si existe un usuario con un username específico.
+     * 
+     * <p>
+     * <b>Uso típico:</b> Validar username único antes de registrar
+     * </p>
+     * 
+     * @param username Username a verificar
+     * @return true si existe, false en caso contrario
+     */
+    boolean existsByUsername(String username);
 
     /**
      * Verifica si existe un usuario con un nombre específico.

@@ -8,12 +8,15 @@ import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.model.Loan;
 import edu.eci.dosw.DOSW_Library.core.model.LoanStatus;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.repository.LoanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -75,8 +78,8 @@ public class LoanService {
      */
     private static final int MAX_ACTIVE_LOANS = 3;
 
-    // Simulación de base de datos
-    private final List<Loan> loanRepository = new ArrayList<>();
+    // Inyección del repositorio de Spring Data JPA
+    private final LoanRepository loanRepository;
 
     // Dependencias de otros servicios
     private final BookService bookService;
@@ -85,13 +88,16 @@ public class LoanService {
     /**
      * Constructor con inyección de dependencias.
      * 
-     * @param bookService Servicio de libros
-     * @param userService Servicio de usuarios
+     * @param loanRepository Repositorio de préstamos gerenciado por Spring Data JPA
+     * @param bookService    Servicio de libros
+     * @param userService    Servicio de usuarios
      */
-    public LoanService(BookService bookService, UserService userService) {
+    @Autowired
+    public LoanService(LoanRepository loanRepository, BookService bookService, UserService userService) {
+        this.loanRepository = loanRepository;
         this.bookService = bookService;
         this.userService = userService;
-        logger.info("LoanService initialized with BookService and UserService");
+        logger.info("LoanService initialized with LoanRepository, BookService and UserService");
     }
 
     // ============================================
@@ -168,18 +174,18 @@ public class LoanService {
         Loan loan = new Loan(loanId, book, user, LocalDateTime.now());
         loan.setStatus(LoanStatus.ACTIVE);
 
-        loanRepository.add(loan);
+        Loan savedLoan = loanRepository.save(loan);
 
         // PASO 7: Actualizar inventario (restar 1 copia)
         bookService.updateAvailability(bookId, -1);
 
         logger.info("Loan created successfully | LoanID: {} | BookID: {} | UserID: {} | Date: {}",
-                loan.getId(),
+                savedLoan.getId(),
                 bookId,
                 userId,
-                loan.getLoanDate());
+                savedLoan.getLoanDate());
 
-        return loan;
+        return savedLoan;
     }
 
     // ============================================
@@ -197,7 +203,7 @@ public class LoanService {
      * @throws LoanLimitExceededException Si ya tiene 3 o más préstamos activos
      */
     private void validateLoanLimit(String userId) throws LoanLimitExceededException {
-        long activeLoans = loanRepository.stream()
+        long activeLoans = loanRepository.findAll().stream()
                 .filter(loan -> loan.getUser().getId().equals(userId))
                 .filter(loan -> loan.getStatus() == LoanStatus.ACTIVE)
                 .count();
@@ -229,7 +235,7 @@ public class LoanService {
      * @throws IllegalStateException Si ya tiene préstamo activo del mismo libro
      */
     private void validateNoDuplicateLoan(String bookId, String userId) {
-        boolean hasDuplicate = loanRepository.stream()
+        boolean hasDuplicate = loanRepository.findAll().stream()
                 .filter(loan -> loan.getUser().getId().equals(userId))
                 .filter(loan -> loan.getBook().getId().equals(bookId))
                 .anyMatch(loan -> loan.getStatus() == LoanStatus.ACTIVE);
@@ -269,9 +275,7 @@ public class LoanService {
     public Loan returnLoan(String loanId) {
         logger.info("Processing return for loan: {}", loanId);
 
-        Loan loan = loanRepository.stream()
-                .filter(l -> l.getId().equals(loanId))
-                .findFirst()
+        Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> {
                     logger.error("Loan not found: {}", loanId);
                     return new ResourceNotFoundException("Loan", loanId);
@@ -287,6 +291,8 @@ public class LoanService {
         loan.setStatus(LoanStatus.RETURNED);
         loan.setReturnDate(LocalDateTime.now());
 
+        Loan savedLoan = loanRepository.save(loan);
+
         // Devolver copia al inventario
         bookService.updateAvailability(loan.getBook().getId(), +1);
 
@@ -295,7 +301,7 @@ public class LoanService {
                 loan.getBook().getId(),
                 loan.getReturnDate());
 
-        return loan;
+        return savedLoan;
     }
 
     // ============================================
@@ -312,9 +318,7 @@ public class LoanService {
     public Loan getLoanById(String loanId) {
         logger.debug("Searching for loan with ID: {}", loanId);
 
-        Loan loan = loanRepository.stream()
-                .filter(l -> l.getId().equals(loanId))
-                .findFirst()
+        Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> {
                     logger.warn("Loan not found: {}", loanId);
                     return new ResourceNotFoundException("Loan", loanId);
@@ -330,8 +334,8 @@ public class LoanService {
      * @return Lista de todos los préstamos
      */
     public List<Loan> getAllLoans() {
-        logger.debug("Retrieving all loans. Total: {}", loanRepository.size());
-        return new ArrayList<>(loanRepository);
+        logger.debug("Retrieving all loans. Total: {}", loanRepository.count());
+        return loanRepository.findAll();
     }
 
     /**
@@ -343,7 +347,7 @@ public class LoanService {
     public List<Loan> getActiveLoans(String userId) {
         logger.debug("Getting active loans for user: {}", userId);
 
-        List<Loan> activeLoans = loanRepository.stream()
+        List<Loan> activeLoans = loanRepository.findAll().stream()
                 .filter(loan -> loan.getUser().getId().equals(userId))
                 .filter(loan -> loan.getStatus() == LoanStatus.ACTIVE)
                 .collect(Collectors.toList());
@@ -361,7 +365,7 @@ public class LoanService {
     public List<Loan> getLoansByUser(String userId) {
         logger.debug("Getting all loans for user: {}", userId);
 
-        List<Loan> userLoans = loanRepository.stream()
+        List<Loan> userLoans = loanRepository.findAll().stream()
                 .filter(loan -> loan.getUser().getId().equals(userId))
                 .collect(Collectors.toList());
 
@@ -378,7 +382,7 @@ public class LoanService {
     public List<Loan> getLoansByBook(String bookId) {
         logger.debug("Getting all loans for book: {}", bookId);
 
-        List<Loan> bookLoans = loanRepository.stream()
+        List<Loan> bookLoans = loanRepository.findAll().stream()
                 .filter(loan -> loan.getBook().getId().equals(bookId))
                 .collect(Collectors.toList());
 
@@ -407,7 +411,7 @@ public class LoanService {
      * @return Cantidad total de préstamos
      */
     public int getTotalLoans() {
-        int total = loanRepository.size();
+        int total = (int) loanRepository.count();
         logger.debug("Total loans in system: {}", total);
         return total;
     }
@@ -418,7 +422,7 @@ public class LoanService {
      * @return Cantidad de préstamos activos
      */
     public long getActiveLoansCount() {
-        long count = loanRepository.stream()
+        long count = loanRepository.findAll().stream()
                 .filter(loan -> loan.getStatus() == LoanStatus.ACTIVE)
                 .count();
 
