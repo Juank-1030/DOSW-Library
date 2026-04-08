@@ -111,6 +111,14 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
     - Controllers (@SecurityRequirement)
     - Flujo completo de validación
 
+13.6. **[🌍 Configuración CORS (Cross-Origin Resource Sharing)](#-configuración-cors-cross-origin-resource-sharing-)**
+    - Qué es CORS y por qué es importante
+    - Flujo de pre-flight requests (OPTIONS)
+    - GlobalExceptionHandler handlers
+    - Cómo funciona el handshake de CORS
+    - Configuración global en SecurityConfig
+    - Ejemplos de testing CORS (curl, Postman, JavaScript)
+
 14. **[Autenticación y Autorización con JWT](#autenticación-y-autorización-con-jwt-)**
     - ✅ Implementación de JWT
     - Estructura de tokens (Header.Payload.Signature)
@@ -3786,6 +3794,335 @@ public class BookController {
 ✅ 16 / 16 endpoints protegidos
    Implementación: Todos los Controllers (excepto /auth/login)
 ```
+
+---
+
+## 🌍 Configuración CORS (Cross-Origin Resource Sharing) ✅
+
+**REQUISITO CUMPLIDO:** CORS está configurado a nivel global para permitir requests desde frontends en otros dominios. La API puede ser consumida desde navegadores en cualquier origen.
+
+### ¿Qué es CORS?
+
+CORS es un mecanismo de seguridad del navegador que controla qué dominios pueden acceder a recursos en otro dominio. Sin CORS, el navegador bloquea las solicitudes cross-origin automáticamente.
+
+```
+❌ SIN CORS: Navegador bloquea request
+   Frontend en https://example.com
+   Intenta acceder a API en https://api.example.com
+   → BLOQUEADO por navegador (mismo dominio requerido)
+
+✅ CON CORS: El servidor explícitamente autoriza
+   API en https://api.example.com responde con headers CORS
+   → Navegador PERMITE la request
+```
+
+### El Flujo de Pre-Flight CORS
+
+Cuando haces un request complejo desde JavaScript (con headers personalizados, método no-simple), el navegador automáticamente envía una **pre-solicitud OPTIONS** primero:
+
+#### 1️⃣ Cliente JavaScript hace solicitud
+
+```javascript
+// Frontend en https://frontend.com
+fetch("https://api.backend.com/api/books", {
+    method: "GET",                              // Request method
+    headers: { 
+        "Authorization": "Bearer token123",     // Custom header
+        "Content-Type": "application/json"
+    }
+});
+```
+
+#### 2️⃣ Navegador intercepta y envía pre-solicitud OPTIONS
+
+```http
+OPTIONS /api/books HTTP/1.1
+Host: api.backend.com
+Origin: https://frontend.com                          ← ¿De dónde viene?
+Access-Control-Request-Method: GET                    ← ¿Qué método quieres usar?
+Access-Control-Request-Headers: Authorization         ← ¿Qué headers necesitas?
+```
+
+#### 3️⃣ Servidor responde con permisos CORS
+
+```http
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: https://frontend.com            ← ✅ Origen permitido
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE         ← ✅ Métodos permitidos
+Access-Control-Allow-Headers: Authorization, Content-Type    ← ✅ Headers permitidos
+Access-Control-Max-Age: 3600                                  ← ✅ Cache por 1 hora
+Access-Control-Allow-Credentials: true                        ← ✅ Cookies permitidas
+```
+
+#### 4️⃣ Navegador evalúa headers CORS
+
+```
+✅ Origin permitido?      → SÍ
+✅ Método permitido?      → SÍ
+✅ Headers permitidos?    → SÍ
+→ PERMITE la solicitud real (GET /api/books)
+```
+
+#### 5️⃣ Navegador envía solicitud real
+
+```http
+GET /api/books HTTP/1.1
+Host: api.backend.com
+Authorization: Bearer token123
+Content-Type: application/json
+```
+
+#### 6️⃣ Servidor responde
+
+```json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+    { "id": 1, "title": "Clean Code" },
+    { "id": 2, "title": "Design Patterns" }
+]
+```
+
+---
+
+### Implementación en DOSW Library
+
+#### Ubicación: SecurityConfig.java
+
+**Archivo:** [src/main/java/edu/eci/dosw/DOSW_Library/security/SecurityConfig.java](src/main/java/edu/eci/dosw/DOSW_Library/security/SecurityConfig.java)
+
+```java
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+    
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            AuthenticationProvider authenticationProvider) throws Exception {
+        http
+                // ✅ Enable CORS with custom configuration
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                // ... rest of config
+        return http.build();
+    }
+    
+    /**
+     * ✅ CORS Configuration Bean
+     * 
+     * Allows requests from different origins (frontend domains).
+     * Handles pre-flight OPTIONS requests automatically.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        
+        // ✅ Allow requests from any origin
+        config.setAllowedOriginPatterns(Arrays.asList("*"));
+        
+        // ✅ Allow standard HTTP methods
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        
+        // ✅ Allow headers including Authorization for Bearer tokens
+        config.setAllowedHeaders(Arrays.asList("*"));
+        
+        // ✅ Expose headers to client
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Total-Count"));
+        
+        // ✅ Cache pre-flight response for 1 hour (3600 seconds)
+        config.setMaxAge(3600L);
+        
+        // ✅ Allow credentials (cookies, authorization headers)
+        config.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // ✅ Apply CORS config to all endpoints ("/**")
+        source.registerCorsConfiguration("/**", config);
+        
+        return source;
+    }
+}
+```
+
+---
+
+### Configuración CORS en Detalle
+
+| Propiedad | Valor | Explicación |
+|-----------|-------|-------------|
+| `allowedOriginPatterns` | `*` | Permite ANY domain (para desarrollo). Cambiar a dominios específicos en producción |
+| `allowedMethods` | GET, POST, PUT, PATCH, DELETE, OPTIONS | Métodos HTTP que se permiten |
+| `allowedHeaders` | `*` | Permite ANY header (incluye Authorization para tokens JWT) |
+| `exposedHeaders` | Authorization, Content-Type, X-Total-Count | Headers que el navegador puede ver en la respuesta |
+| `maxAge` | 3600 (segundos) | Cachea respuesta pre-flight por 1 hora (reduce requests OPTIONS) |
+| `allowCredentials` | true | Permite enviar cookies y auth headers en el request |
+| `registerCorsConfiguration("/**", config)` | Todas las rutas | Aplica CORS a todos los endpoints |
+
+---
+
+### ⚠️ Producción: Configuración Recomendada
+
+**Para producción, CAMBIAR de `*` a dominios específicos:**
+
+```java
+@Bean
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration config = new CorsConfiguration();
+    
+    // ❌ NO usar * en producción
+    // ✅ Usar dominios específicos
+    config.setAllowedOrigins(Arrays.asList(
+        "https://frontend.example.com",      // Frontend principal
+        "https://admin.example.com",         // Admin panel
+        "https://mobile.example.com"         // App móvil
+    ));
+    
+    // ... resto igual
+    return config;
+}
+```
+
+---
+
+### 🧪 Testing CORS - Ejemplos Prácticos
+
+#### Opción 1: Curl (Terminal)
+
+**Test 1: Verificar pre-flight OPTIONS**
+```bash
+curl -i -X OPTIONS http://localhost:8443/api/books \
+  -H "Origin: http://localhost:3000" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: Authorization"
+```
+
+**Respuesta esperada:**
+```
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Credentials: true
+Access-Control-Max-Age: 3600
+```
+
+**Test 2: Request real con Authorization**
+```bash
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Authorization: Bearer eyJhbGc..." \
+  -H "Content-Type: application/json"
+```
+
+#### Opción 2: JavaScript / Fetch API
+
+**Desde frontend en http://localhost:3000**
+
+```javascript
+// ✅ CORS automáticamente maneja pre-flight + request real
+fetch("http://localhost:8443/api/books", {
+    method: "GET",
+    headers: {
+        "Authorization": "Bearer eyJhbGc...",
+        "Content-Type": "application/json"
+    }
+})
+.then(response => response.json())
+.then(data => console.log("Books:", data))
+.catch(error => console.error("CORS Error:", error));
+```
+
+**Flujo automático:**
+1. Navegador envía `OPTIONS /api/books`
+2. Servidor responde con headers CORS
+3. Browser verifica si origen está permitido
+4. Si ✅ permitido → Envía GET request real
+5. Si ❌ bloqueado → Error `CORS policy` en console
+
+#### Opción 3: Postman
+
+**Test pre-flight OPTIONS:**
+
+1. New Request
+2. Method: `OPTIONS`
+3. URL: `http://localhost:8443/api/books`
+4. Headers:
+   ```
+   Origin: http://localhost:3000
+   Access-Control-Request-Method: GET
+   Access-Control-Request-Headers: Authorization
+   ```
+5. Send → Ver respuesta con `Access-Control-Allow-*` headers
+
+**Test request authenticado:**
+
+1. New Request
+2. Method: `GET`
+3. URL: `http://localhost:8443/api/books`
+4. Authorization Tab: Select "Bearer Token", paste token
+5. Send → ✅ Funciona sin CORS error
+
+#### Opción 4: PowerShell
+
+**Test CORS con Invoke-WebRequest:**
+
+```powershell
+# Pre-flight request
+$headers = @{
+    "Origin" = "http://localhost:3000"
+    "Access-Control-Request-Method" = "GET"
+    "Access-Control-Request-Headers" = "Authorization"
+}
+
+$response = Invoke-WebRequest -Uri "http://localhost:8443/api/books" `
+    -Method OPTIONS `
+    -Headers $headers
+
+$response.Headers["Access-Control-Allow-Origin"]          # Debe mostrar origin
+$response.Headers["Access-Control-Allow-Methods"]         # Debe mostrar métodos
+$response.Headers["Access-Control-Allow-Headers"]         # Debe mostrar headers
+```
+
+---
+
+### 📋 Matriz de Escenarios CORS
+
+| Escenario | Pre-flight | Navegador | Resultado |
+|-----------|-----------|-----------|-----------|
+| Mismo dominio (`http://api.com` → `http://api.com/api`) | NO | N/A | ✅ Permitido (CORS no aplica) |
+| Diferente dominio, GET (simple request) | NO | Detecta origen diferente | ✓ Si CORS headers presentes |
+| Diferente dominio, POST + custom headers | SÍ | Pre-flight → Evalúa CORS | ✓ Si pre-flight 200 + headers OK |
+| Diferente dominio, PATCH | SÍ | Pre-flight → Evalúa CORS | ✓ Si PATCH en allowedMethods |
+| Origin NO en allowedOrigins | SÍ | Pre-flight 200 pero falla evaluación | ❌ CORS policy blocked |
+| Header NO en allowedHeaders | SÍ | Pre-flight OK pero header bloqueado | ❌ CORS policy blocked |
+
+---
+
+### 🔍 Debugging CORS en Navegador
+
+1. **Abrir DevTools:** `F12` en Chrome/Firefox
+2. **Ir a Console tab**
+3. **Ejecutar fetch con CORS:**
+
+```javascript
+fetch("http://localhost:8443/api/books", {
+    method: "GET",
+    headers: { "Authorization": "Bearer token" }
+})
+.catch(e => console.error(e));
+```
+
+4. **Ver errores:**
+   ```
+   ❌ "Access to XMLHttpRequest at 'http://localhost:8443/api/books' from origin 'http://localhost:3000' has been blocked by CORS policy"
+      → Significa server no devolvió los headers CORS correctos
+   ```
+
+5. **Ver Network tab:**
+   - Filtrar por `OPTIONS` requests (pre-flight)
+   - Ver headers: `Origin`, `Access-Control-Request-Method`, `Access-Control-Request-Headers`
+   - Ver respuesta: `Access-Control-Allow-*` headers
 
 ---
 
