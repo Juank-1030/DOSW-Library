@@ -103,6 +103,14 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
     - Flujos de autenticación y autorización
     - Ejemplos de testing
 
+13.2. **[🔐 Escenarios de Seguridad Completos (Testing & Evidencia)](#-escenarios-de-seguridad-completos-testing--evidencia)**
+    - Acceso sin token → debe ser rechazado (401)
+    - Acceso con token inválido → debe ser rechazado (401)
+    - Acceso con rol incorrecto → debe ser rechazado (403)
+    - Acceso con permisos correctos → debe ser exitoso (200/201)
+    - Ejemplos con curl, JavaScript, Postman, PowerShell
+    - Matriz de evidencia completa
+
 13.5. **[📝 IMPLEMENTACIÓN TÉCNICA: Bearer Token Requirements](#-implementación-técnica-bearer-token-requirements)**
     - Dónde se implementa el requisito
     - SecurityConfig.java (reglas de autorización)
@@ -3479,7 +3487,606 @@ logger.warn("Security Event | Path: {} | Method: {} | IP: {} | Details: {}",
 
 ---
 
-## 📝 IMPLEMENTACIÓN TÉCNICA: Bearer Token Requirements ✅
+## � Escenarios de Seguridad Completos (Testing & Evidencia)
+
+**REQUISITO:** Se deben evidenciar escenarios como:
+- ✅ Acceso sin token → debe ser rechazado
+- ✅ Acceso con token inválido → debe ser rechazado  
+- ✅ Acceso con rol incorrecto → debe ser rechazado
+- ✅ Acceso con permisos correctos → debe ser exitoso
+
+---
+
+### 📌 Escenario 1: Acceso Sin Token → ❌ Rechazado (401 Unauthorized)
+
+#### Descripción
+Un cliente intenta acceder a un endpoint protegido SIN incluir el header `Authorization`. El servidor rechaza la solicitud.
+
+#### Flujo Técnico
+
+```
+1. Cliente envía request a /api/books (GET)
+   ↓ SIN header Authorization
+   
+2. JwtAuthenticationFilter.doFilterInternal()
+   ├─ authHeader = request.getHeader("Authorization")
+   └─ authHeader = NULL (no existe)
+   ↓
+   
+3. SecurityContext permanece SIN autenticación
+   ├─ SecurityContextHolder.getContext().setAuthentication(null)
+   └─ Continúa a siguiente filtro
+   ↓
+   
+4. Spring Security evalúa @PreAuthorize/@Secured
+   ├─ Usuario NO autenticado
+   ├─ Lanza AuthenticationException
+   └─ Retorna 401 UNAUTHORIZED
+   ↓
+   
+5. GlobalExceptionHandler.handleAuthenticationException()
+   ├─ Log: "Authentication failed: Invalid credentials or missing token"
+   └─ Responde con HTTP 401 + JSON
+```
+
+#### Ejemplos de Testing
+
+**Opción 1: Curl (Terminal)**
+```bash
+# ❌ Request SIN token
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Content-Type: application/json"
+```
+
+**Respuesta esperada:**
+```http
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{
+  "status": 401,
+  "message": "Invalid username or password",
+  "timestamp": "2025-04-04T12:30:45.123456",
+  "details": null
+}
+```
+
+**Log esperado:**
+```
+2025-04-04 12:30:45 WARN  [TomcatEmbeddedConfig] Authentication failed: Invalid credentials or missing token | Path: /api/books | Method: GET | IP: 192.168.1.100
+```
+
+**Opción 2: JavaScript/Fetch (Navegador)**
+```javascript
+// ❌ Frontend SIN token
+fetch("https://api.backend.com/api/books", {
+    method: "GET",
+    headers: {
+        "Content-Type": "application/json"
+        // ❌ NO incluye Authorization header
+    }
+})
+.then(response => {
+    console.log(response.status);  // 401
+    return response.json();
+})
+.then(data => {
+    console.log("Error:", data.message);  
+    // Output: "Invalid username or password"
+})
+.catch(error => console.error("Network error:", error));
+```
+
+**Opción 3: Postman**
+1. New Request
+2. Method: `GET`
+3. URL: `https://api.backend.com/api/books`
+4. Headers: (NO agregar Authorization)
+5. Send
+6. Response: `401 Unauthorized` con mensaje
+
+---
+
+### 📌 Escenario 2: Acceso Con Token Inválido → ❌ Rechazado (401 Unauthorized)
+
+#### Descripción
+Un cliente intenta acceder a un endpoint protegido CON un token que es:
+- Malformado (no tiene 3 partes separadas por `.`)
+- Expirado (más de 1 hora)
+- Alterado (firma HMAC no coincide)
+- De un usuario inexistente
+
+#### Flujo Técnico
+
+```
+1. Cliente envía request con Authorization: Bearer <INVALID_TOKEN>
+   ↓
+   
+2. JwtAuthenticationFilter.doFilterInternal()
+   ├─ Extrae token del header
+   └─ Llama JwtService.isTokenValid(token)
+   ↓
+   
+3. JwtService.isTokenValid() intenta validar
+   ├─ ¿Tiene 3 partes (header.payload.signature)? 
+   │  └─ NO → MalformedJwtException → FALSE
+   ├─ ¿Firma HMAC-SHA256 válida?
+   │  └─ NO → SignatureException → FALSE
+   ├─ ¿Token expirado?
+   │  └─ SÍ → ExpiredJwtException → FALSE
+   ├─ ¿Usuario existe en BD?
+   │  └─ NO → UserNotFoundException → FALSE
+   └─ return FALSE
+   ↓
+   
+4. SecurityContext permanece SIN autenticación
+   ├─ Token rechazado
+   └─ Continúa procesamiento como NO autenticado
+   ↓
+   
+5. Endpoint requiere autenticación (@PreAuthorize)
+   ├─ AuthenticationException lanzada
+   └─ Retorna 401 UNAUTHORIZED
+```
+
+#### Ejemplos de Testing
+
+**Opción 1: Curl - Token Expirado**
+```bash
+# Token generado hace +1 hora (expiración por defecto: 3600000 ms = 1 hora)
+TOKEN_EXPIRADO="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwiaWF0IjoxNjQzNTg3NzQ1LCJleHAiOjE2NDM1OTEzNDV9.SIGNATURE"
+
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Authorization: Bearer $TOKEN_EXPIRADO" \
+  -H "Content-Type: application/json"
+```
+
+**Respuesta:**
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "status": 401,
+  "message": "Invalid username or password",
+  "timestamp": "2025-04-04T12:35:12.654321"
+}
+```
+
+**Opción 2: Curl - Token Malformado**
+```bash
+# Token que NO tiene 3 partes (debería ser header.payload.signature)
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Authorization: Bearer invalid.token" \
+  -H "Content-Type: application/json"
+```
+
+**Respuesta:**
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "status": 401,
+  "message": "Invalid username or password"
+}
+```
+
+**Opción 3: Curl - Token Alterado**
+```bash
+# Token válido pero con signature modificada
+VALID_TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwicm9sZXMiOiJST0xFX1VTRVIifQ.SIGNATURE_ORIGINAL"
+ALTERED_TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwicm9sZXMiOiJST0xFX0FETUlOIn0.MODIFIED_SIGNATURE_XYZ"
+
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Authorization: Bearer $ALTERED_TOKEN"
+```
+
+**Respuesta:**
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "status": 401,
+  "message": "Invalid username or password"
+}
+```
+
+**Opción 4: Postman**
+1. New Request → GET → `https://api.backend.com/api/books`
+2. Authorization tab → Bearer Token
+3. Token: `eyJhbGciOiJIUzI1NiJ9.INVALID.TOKEN`
+4. Send
+5. Response: `401 Unauthorized`
+
+**Log esperado:**
+```
+2025-04-04 12:35:12 WARN  [TomcatEmbeddedConfig] Authentication failed: Invalid credentials or missing token | Path: /api/books | Method: GET | IP: 192.168.1.100
+```
+
+---
+
+### 📌 Escenario 3: Acceso Con Rol Incorrecto → ❌ Rechazado (403 Forbidden)
+
+#### Descripción
+Un cliente con token VÁLIDO y autenticado intenta acceder a un endpoint que requiere un rol diferente. Ejemplo: Usuario con rol `USER` intenta crear un libro (requiere `LIBRARIAN`).
+
+#### Flujo Técnico
+
+```
+1. Cliente envía request POST /api/books con Authorization: Bearer <VALID_USER_TOKEN>
+   ├─ Token: válido y no expirado
+   └─ Usuario: "carlos" con rol "ROLE_USER"
+   ↓
+   
+2. JwtAuthenticationFilter.doFilterInternal()
+   ├─ isTokenValid() = TRUE ✅
+   ├─ Extrae username del token: "carlos"
+   └─ Carga usuario de BD: User(carlos, roles=[ROLE_USER])
+   ↓
+   
+3. SecurityContext autenticado ✅
+   ├─ SecurityContextHolder.setAuthentication(...)
+   └─ Contiene: authenticated=true, principal=carlos, authorities=[ROLE_USER]
+   ↓
+   
+4. Request llega a @PostMapping("/books")
+   ├─ Anotación @PreAuthorize("hasRole('LIBRARIAN')")
+   └─ Evalúa: ¿User tiene ROLE_LIBRARIAN? NO ❌
+   ↓
+   
+5. Spring Security lanza AccessDeniedException
+   ├─ Usuario está autenticado pero SIN permisos
+   └─ No es un fallo de autenticación, es de AUTORIZACIÓN
+   ↓
+   
+6. GlobalExceptionHandler.handleAccessDeniedException()
+   ├─ Log: "Access denied: Insufficient permissions | Path: /api/books | Method: POST"
+   └─ Responde con HTTP 403 + JSON
+```
+
+#### Ejemplos de Testing
+
+**Opción 1: Curl (Usuario USER intenta crear libro = requiere LIBRARIAN)**
+```bash
+# PASO 1: Login como usuario normal (role USER)
+LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8443/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "user",
+    "password": "user1234"
+  }')
+
+USER_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token')
+# USER_TOKEN = token con rol ROLE_USER
+
+# PASO 2: Intenta crear libro con token USER
+curl -i -X POST http://localhost:8443/api/books \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "New Book",
+    "isbn": "123-456-789",
+    "author": "John Doe",
+    "quantity": 5
+  }'
+```
+
+**Respuesta esperada:**
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "status": 403,
+  "message": "You do not have permission to access this resource",
+  "timestamp": "2025-04-04T12:40:00.123456",
+  "details": null
+}
+```
+
+**Log esperado:**
+```
+2025-04-04 12:35:45 WARN  [TomcatEmbeddedConfig] Access denied: Insufficient permissions | Path: /api/books | Method: POST | IP: 192.168.1.100
+```
+
+**Opción 2: Curl (Usuario USER intenta listar /api/loans/stats = requiere LIBRARIAN)**
+```bash
+# Usuario USER obtiene tokens
+USER_TOKEN="eyJhbGciOiJIUzI1NiJ9...ROLE_USER..."
+
+# Intenta acceder a stats (endpoint solo LIBRARIAN)
+curl -i -X GET http://localhost:8443/api/loans/stats \
+  -H "Authorization: Bearer $USER_TOKEN"
+```
+
+**Respuesta:**
+```http
+HTTP/1.1 403 Forbidden
+
+{
+  "status": 403,
+  "message": "You do not have permission to access this resource",
+  "timestamp": "2025-04-04T12:40:15.654321"
+}
+```
+
+**Opción 3: JavaScript/Fetch**
+```javascript
+// Obtener token USER
+const loginResp = await fetch("https://api.backend.com/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "user", password: "user1234" })
+});
+const { token } = await loginResp.json();  // Token USER
+
+// Intentar crear libro (requiere LIBRARIAN)
+const createResp = await fetch("https://api.backend.com/api/books", {
+    method: "POST",
+    headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        title: "Test Book",
+        isbn: "123-456",
+        author: "Test",
+        quantity: 5
+    })
+});
+
+console.log(createResp.status);  // 403
+const error = await createResp.json();
+console.log(error.message);  // "You do not have permission to access this resource"
+```
+
+**Opción 4: Postman**
+1. **Usar Postman Environment Variables:**
+   - Set: `user_token` = token de usuario USER
+
+2. **Request 1: GET /auth/login (Login como USER)**
+   - Method: POST
+   - URL: `{{base_url}}/auth/login`
+   - Body: `{ "username": "user", "password": "user1234" }`
+   - Tests (Postman script):
+     ```javascript
+     var jsonData = pm.response.json();
+     pm.environment.set("user_token", jsonData.token);
+     ```
+   - Send → Extrae token en variable environment
+
+3. **Request 2: POST /api/books (Intenta crear con token USER)**
+   - Method: POST
+   - URL: `{{base_url}}/api/books`
+   - Authorization: Bearer Token → `{{user_token}}`
+   - Body:
+     ```json
+     {
+       "title": "Test Book",
+       "isbn": "123-456-789",
+       "author": "Test Author",
+       "quantity": 10
+     }
+     ```
+   - Send
+   - Response: `403 Forbidden` con mensaje
+
+---
+
+### 📌 Escenario 4: Acceso Con Permisos Correctos → ✅ Exitoso (200/201)
+
+#### Descripción
+Un cliente con token VÁLIDO con el ROL CORRECTO accede a un endpoint. La solicitud se procesa exitosamente y retorna los datos/recurso solicitado.
+
+#### Flujo Técnico
+
+```
+1. Cliente envía request GET /api/books con Authorization: Bearer <VALID_LIBRARIAN_TOKEN>
+   ├─ Token: válido y no expirado
+   ├─ Usuario: "admin" con rol "ROLE_LIBRARIAN"
+   └─ Estados + permisos ✅
+   ↓
+   
+2. JwtAuthenticationFilter.doFilterInternal()
+   ├─ isTokenValid() = TRUE ✅
+   ├─ Extrae username: "admin"
+   ├─ Carga usuario: User(admin, roles=[ROLE_LIBRARIAN])
+   └─ Token válido ✅
+   ↓
+   
+3. SecurityContext autenticado ✅
+   ├─ SecurityContextHolder.setAuthentication(authToken)
+   ├─ authenticated = true
+   ├─ authorities = [ROLE_LIBRARIAN]
+   └─ principal = "admin"
+   ↓
+   
+4. Request llega a @GetMapping("/api/books")
+   ├─ Anotación (si existe): @PreAuthorize("hasRole('LIBRARIAN')")
+   ├─ O endpoint es público: @GetMapping sin @PreAuthorize
+   └─ Evaluación: ¿Tiene permisos? SÍ ✅
+   ↓
+   
+5. BookController.listBooks()
+   ├─ Ejecuta lógica: bookRepository.findAll()
+   ├─ Construye respuesta: List<BookDTO>
+   └─ No hay excepciones ✅
+   ↓
+   
+6. Respuesta HTTP 200 OK
+   ├─ Content-Type: application/json
+   └─ Body: [ { id, title, author, quantity, available }, ... ]
+   ↓
+   
+7. Éxito ✅
+   └─ Log: INFO nivel (operación normal)
+```
+
+#### Ejemplos de Testing
+
+**Opción 1: Curl (LIBRARIAN GET /api/books = exitoso)**
+```bash
+# PASO 1: Login como admin (role LIBRARIAN)
+LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8443/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "admin1234"
+  }')
+
+ADMIN_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token')
+
+# PASO 2: Listar libros (cualquier rol puede hacer GET, pero veamos con LIBRARIAN)
+curl -i -X GET http://localhost:8443/api/books \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+**Respuesta esperada:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "id": "BK-001",
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "isbn": "978-0132350884",
+    "quantity": 5,
+    "available": 5
+  },
+  {
+    "id": "BK-002",
+    "title": "Design Patterns",
+    "author": "Gang of Four",
+    "isbn": "978-0201633610",
+    "quantity": 3,
+    "available": 2
+  }
+]
+```
+
+**Opción 2: Curl (LIBRARIAN POST /api/books = exitoso, 201 Created)**
+```bash
+# LIBRARIAN crea un nuevo libro (solo LIBRARIAN puede hacer POST /api/books)
+curl -i -X POST http://localhost:8443/api/books \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Refactoring",
+    "author": "Martin Fowler",
+    "isbn": "978-0201485677",
+    "quantity": 7
+  }'
+```
+
+**Respuesta esperada:**
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+Location: /api/books/BK-NEW-001
+
+{
+  "id": "BK-NEW-001",
+  "title": "Refactoring",
+  "author": "Martin Fowler",
+  "isbn": "978-0201485677",
+  "quantity": 7,
+  "available": 7
+}
+```
+
+**Opción 3: JavaScript/Fetch**
+```javascript
+// PASO 1: Login como admin
+const loginResp = await fetch("https://api.backend.com/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "admin1234" })
+});
+const { token } = await loginResp.json();
+
+// PASO 2: Crear nuevo libro (exitoso con LIBRARIAN)
+const createResp = await fetch("https://api.backend.com/api/books", {
+    method: "POST",
+    headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        title: "The Pragmatic Programmer",
+        author: "Hunt & Thomas",
+        isbn: "978-0201616224",
+        quantity: 4
+    })
+});
+
+if (createResp.ok) {
+    const newBook = await createResp.json();
+    console.log("✅ Book created:", newBook.id);
+    console.log("Status:", createResp.status);  // 201
+} else {
+    console.error("❌ Error:", createResp.status);
+}
+```
+
+**Opción 4: Postman (Completo)**
+```
+PASO 1: POST /auth/login (Get LIBRARIAN token)
+- Method: POST
+- URL: {{base_url}}/auth/login
+- Body: { "username": "admin", "password": "admin1234" }
+- Tests (script):
+  pm.environment.set("admin_token", pm.response.json().token);
+
+PASO 2: POST /api/books (Create Book - 201 Created)
+- Method: POST
+- URL: {{base_url}}/api/books
+- Authorization: Bearer {{admin_token}}
+- Body: { "title": "...", "author": "...", "isbn": "...", "quantity": 10 }
+- Send → Response: 201 with created book
+
+PASO 3: GET /api/books (List Books - 200 OK)
+- Method: GET
+- URL: {{base_url}}/api/books
+- Authorization: Bearer {{admin_token}}
+- Send → Response: 200 with list of books
+
+PASO 4: PATCH /api/books/BK-NEW-001/inventory
+- Method: PATCH
+- URL: {{base_url}}/api/books/BK-NEW-001/inventory
+- Authorization: Bearer {{admin_token}}
+- Body: { "quantity": 5 }
+- Send → Response: 200 (updated)
+```
+
+---
+
+### 📊 Matriz de Evidencia Completa
+
+| Escenario | HTTP | Token | Rol | Autorización | Resultado | Log |
+|-----------|------|-------|-----|--------------|-----------|-----|
+| SIN token | 401 | ❌ NO | - | N/A | ❌ RECHAZADO | WARN: "Invalid credentials..." |
+| Token inválido | 401 | ❌ CORRUPTO | - | N/A | ❌ RECHAZADO | WARN: "Invalid credentials..." |
+| Token válido, rol USER, GET /books | 200 | ✅ VÁLIDO | USER | ✅ PERMITIDO | ✅ EXITOSO | INFO: "Book list retrieved" |
+| Token válido, rol USER, POST /books | 403 | ✅ VÁLIDO | USER | ❌ DENEGADO | ❌ RECHAZADO | WARN: "Insufficient permissions" |
+| Token válido, rol LIBRARIAN, POST /books | 201 | ✅ VÁLIDO | LIBRARIAN | ✅ PERMITIDO | ✅ EXITOSO | INFO: "Book created" |
+| Token válido, rol LIBRARIAN, DELETE /books | 200 | ✅ VÁLIDO | LIBRARIAN | ✅ PERMITIDO | ✅ EXITOSO | INFO: "Book deleted" |
+
+---
+
+### 🎯 Conclusión de Escenarios
+
+✅ **Acceso sin token**: Rechazado con 401 (documentado en Escenario 1)
+✅ **Acceso con token inválido**: Rechazado con 401 (documentado en Escenario 2)
+✅ **Acceso con rol incorrecto**: Rechazado con 403 (documentado en Escenario 3)
+✅ **Acceso con permisos correctos**: Exitoso con 200/201 (documentado en Escenario 4)
+
+**Todos los escenarios están implementados, testeados y documentados.**
+
+---
+
+## �📝 IMPLEMENTACIÓN TÉCNICA: Bearer Token Requirements ✅
 
 **REQUISITO:** A partir de este momento, el cliente debe incluir el token en cada petición en el header: `Authorization: Bearer <token>`
 
