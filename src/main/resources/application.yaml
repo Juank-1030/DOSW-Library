@@ -1,0 +1,106 @@
+# ============================================
+# APPLICATION CONFIGURATION - DOSW Library
+# ============================================
+# This configuration file uses PostgreSQL for data persistence
+# To use H2 (in-memory), use application.properties instead or rename this file
+
+spring:
+  application:
+    name: DOSW-Library
+
+  # ============================================
+  # DATASOURCE: PostgreSQL Configuration
+  # ============================================
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dosw_library_db
+    username: postgres
+    password: postgres123  # Change to your PostgreSQL password
+    driverClassName: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  # ============================================
+  # JPA / HIBERNATE Configuration
+  # ============================================
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop  # Options: create-drop (dev), update (test), validate (prod)
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+          use_scrollable_resultset: true
+        order_inserts: true
+        order_updates: true
+
+  # ============================================
+  # SPRINGDOC / OpenAPI / Swagger Configuration
+  # ============================================
+  springdoc:
+    api-docs:
+      path: /api-docs
+    swagger-ui:
+      path: /swagger-ui.html
+      enabled: true
+      operations-sorter: method
+      tags-sorter: alpha
+      display-request-duration: true
+
+# ============================================
+# H2 Console (Optional for testing/admin)
+# ============================================
+spring:
+  h2:
+    console:
+      enabled: false  # Set to true if you want to use H2 alongside PostgreSQL
+      path: /h2-console
+
+# ============================================
+# Custom Security Properties (JWT)
+# ============================================
+security:
+  jwt:
+    secret: VGhpc0lzQVN0cm9uZ0pXVFNlY3JldEtleUZvckRPU1dfTGlicmFyeV8yMDI2X1Bhc3NfQ2hhbmdlTWVQbGVhc2U=
+    expiration-ms: 3600000  # 1 hour in milliseconds
+  auth:
+    username: admin
+    password: admin1234
+
+# ============================================
+# Logging Configuration
+# ============================================
+logging:
+  level:
+    root: INFO
+    org.springframework.boot: INFO
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    edu.eci.dosw.DOSW_Library: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/dosw-library.log
+    max-size: 1MB
+    max-history: 10
+
+# ============================================
+# Server Configuration
+# ============================================
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  error:
+    include-message: ALWAYS
+    include-binding-errors: ALWAYS

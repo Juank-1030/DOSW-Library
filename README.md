@@ -13,17 +13,25 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
 5. [Anotaciones y Por Que Se Usan](#anotaciones-y-por-que-se-usan)
 6. [Estructura de Paquetes](#estructura-de-paquetes)
 7. [Modelo Entidad-Relación Normalizado a 3FN](#modelo-entidad-relación-normalizado-a-3fn)
-8. [Paquetes y Clases: Responsabilidad Detallada](#paquetes-y-clases-responsabilidad-detallada)
-9. [Configuracion y Ejecucion](#configuracion-y-ejecucion)
-10. [Endpoints Implementados](#endpoints-implementados)
-11. [Flujos Funcionales Clave](#flujos-funcionales-clave)
-12. [Flujo Entre Paquetes y Clases](#flujo-entre-paquetes-y-clases)
-13. [Explicacion Paso a Paso: Flujos con Codigo Real](#explicacion-paso-a-paso-flujos-con-codigo-real)
-14. [Explicacion de Todas las Clases](#explicacion-de-todas-las-clases)
-15. [Como Implementar y Extender el Proyecto](#como-implementar-y-extender-el-proyecto)
-16. [Pruebas y Cobertura Actual](#pruebas-y-cobertura-actual)
-17. [Riesgos Tecnicos y Mejoras Recomendadas](#riesgos-tecnicos-y-mejoras-recomendadas)
-18. [Glosario](#glosario)
+8. [Implementación JPA: Entidades con Anotaciones](#implementación-jpa-entidades-con-anotaciones-)
+9. [Capa Repository: Abstracción de Persistencia](#capa-repository-abstracción-de-persistencia-)
+10. [Paquetes y Clases: Responsabilidad Detallada](#paquetes-y-clases-responsabilidad-detallada)
+11. [Capa Service: Lógica de Negocio](#capa-service-lógica-de-negocio-)
+12. [Validación de Datos en DTOs](#validación-de-datos-en-dtos-)
+13. [Manejo de Errores y Excepciones](#manejo-de-errores-y-excepciones-)
+14. [Autenticación y Autorización con JWT](#autenticación-y-autorización-con-jwt-)
+15. [Logging y Auditoría](#logging-y-auditoría-)
+16. [Configuracion y Ejecucion](#configuracion-y-ejecucion)
+17. [Implementación Práctica: Setup Real de PostgreSQL + application.yaml](#-implementación-práctica-setup-real-de-postgresql--applicationyaml)
+18. [Endpoints Implementados](#endpoints-implementados)
+19. [Flujos Funcionales Clave](#flujos-funcionales-clave)
+20. [Flujo Entre Paquetes y Clases](#flujo-entre-paquetes-y-clases)
+21. [Explicacion Paso a Paso: Flujos con Codigo Real](#explicacion-paso-a-paso-flujos-con-codigo-real)
+22. [Explicacion de Todas las Clases](#explicacion-de-todas-las-clases)
+23. [Como Implementar y Extender el Proyecto](#como-implementar-y-extender-el-proyecto)
+24. [Pruebas y Cobertura Actual](#pruebas-y-cobertura-actual)
+25. [Riesgos Tecnicos y Mejoras Recomendadas](#riesgos-tecnicos-y-mejoras-recomendadas)
+26. [Glosario](#glosario)
 
 ## Resumen Ejecutivo
 
@@ -58,17 +66,121 @@ Construir una API de biblioteca robusta para practicar principios de arquitectur
 
 ## Stack Tecnologico
 
-- Java 21
-- Spring Boot 4.0.3
-- Spring Web
-- Spring Validation (Jakarta Validation)
-- Spring Security
-- JJWT 0.12.6
-- Spring Data JPA
-- H2 Database
-- Lombok
-- Springdoc OpenAPI
-- JUnit 5
+### Lenguaje y Runtime
+- **Java 21** (LTS - Long Term Support)
+- **Spring Boot 4.0.3** (framework principal)
+
+### Dependencias Maven (en pom.xml)
+
+#### Persistencia ✅ **Spring Data JPA**
+```xml
+<!-- Spring Data JPA (ORM con Hibernate) -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+
+<!-- H2 Database (BD en memoria para desarrollo) -->
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+```
+
+#### Web y Validación
+```xml
+<!-- Spring Web MVC (REST Controllers) -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+
+<!-- Jakarta Validation (validación de DTOs) -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+#### Seguridad y Autenticación
+```xml
+<!-- Spring Security (autenticación y autorización) -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+
+<!-- JJWT 0.12.6 (JWT tokens) -->
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>
+    <version>0.12.6</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+#### Documentación
+```xml
+<!-- Springdoc OpenAPI (Swagger/OpenAPI de UI) -->
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.8.6</version>
+</dependency>
+```
+
+#### Utilidades
+```xml
+<!-- Lombok (reducción de boilerplate) -->
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
+```
+
+#### Testing
+```xml
+<!-- Spring Boot Test (JUnit 5, Mockito, AssertJ) -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+
+<!-- Spring Security Test -->
+<dependency>
+    <groupId>org.springframework.security</groupId>
+    <artifactId>spring-security-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+### Resumen de componentes
+
+| Componente | Versión | Rol |
+|-----------|---------|-----|
+| Java | 21 | Runtime |
+| Spring Boot | 4.0.3 | Base framework |
+| **Spring Data JPA** | ✅ | **Persistencia ORM** |
+| H2 | Runtime | BD en memoria |
+| Spring Security | - | Autenticación |
+| JJWT | 0.12.6 | Tokens JWT |
+| Lombok | - | Boilerplate |
+| Springdoc OpenAPI | 2.8.6 | Documentación |
+| JUnit 5 | - | Testing |
 
 ## Arquitectura del Proyecto
 
@@ -612,7 +724,680 @@ UNIQUE (username)                       -- Username único por usuario
 
 ---
 
+## Implementación JPA: Entidades con Anotaciones ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/model/`
+
+Las entidades están mapeadas usando **Spring Data JPA** con anotaciones de **Jakarta Persistence**. Cada entidad corresponde 1:1 con una tabla de la BD.
+
+### User.java - Entidad de Usuarios
+
+**Anotaciones principales:**
+
+```java
+@Entity
+@Table(
+    name = "users",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = "email", name = "uk_users_email"),
+        @UniqueConstraint(columnNames = "username", name = "uk_users_username"),
+        @UniqueConstraint(columnNames = "dni", name = "uk_users_dni")
+    }
+)
+public class User {
+    
+    @Id
+    private String id;  // VARCHAR(20) @PK
+    
+    @Column(nullable = false)
+    private String name;  // VARCHAR(100) NOT NULL
+    
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;  // VARCHAR(100) UNIQUE
+    
+    @Column(nullable = false, unique = true, length = 50)
+    private String username;  // VARCHAR(50) UNIQUE (login)
+    
+    @Column(nullable = false, length = 255)
+    private String password;  // VARCHAR(255) (hash BCrypt)
+    
+    @Column(nullable = false, length = 50)
+    private String role;  // VARCHAR(50) (BIBLIOTECARIO, USUARIO)
+    
+    @Column(nullable = false, unique = true, length = 15)
+    private String dni;  // VARCHAR(15) UNIQUE
+    
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;  // TIMESTAMP DEFAULT NOW()
+    
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;  // TIMESTAMP DEFAULT NOW()
+    
+    /**
+     * Relación 1:N con Loan
+     * - mappedBy = "user": Loan.user es el lado propietario
+     * - cascade = CascadeType.ALL: cambios en User afectan Loans
+     * - orphanRemoval = true: Loans sin User se eliminan
+     * - fetch = FetchType.LAZY: carga bajo demanda (mejor performance)
+     */
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Loan> loans = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+**¿Qué significa?**
+- `@Entity`: JPA crea tabla `users` automáticamente
+- `@Table(uniqueConstraints=...)`: Restricciones UNIQUE en BD
+- `@Id`: Clave primaria (String en este caso, no auto-generado)
+- `@Column(unique=true)`: email, username, dni son únicos
+- `@OneToMany`: Un usuario puede tener múltiples préstamos
+- `@PrePersist/@PreUpdate`: Hooks para timestamps automáticos
+
+---
+
+### Book.java - Entidad de Libros
+
+```java
+@Entity
+@Table(
+    name = "books",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = "isbn", name = "uk_books_isbn")
+    }
+)
+public class Book {
+    
+    @Id
+    private String id;  // VARCHAR(20) @PK
+    
+    @Column(nullable = false)
+    private String title;  // VARCHAR(200)
+    
+    @Column(nullable = false)
+    private String author;  // VARCHAR(100)
+    
+    @Column(nullable = false, unique = true, length = 20)
+    private String isbn;  // VARCHAR(20) UNIQUE
+    
+    @Column(length = 500)
+    private String description;  // VARCHAR(500) nullable
+    
+    @Column(nullable = false)
+    private Integer copies;  // INT NOT NULL (CHECK: > 0)
+    
+    /**
+     * CAMBIO CRÍTICO: available es Integer (cantidad), NO boolean
+     * Permite rastrear cantidad exacta de copias disponibles
+     * Validación: 0 <= available <= copies
+     */
+    @Column(nullable = false)
+    private Integer available;  // INT NOT NULL
+    
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Relación 1:N con Loan
+     * Un libro puede ser prestado múltiples veces
+     */
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Loan> loans = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+        if (available == null) available = copies;  // Inicializa disponibilidad
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+**Puntos clave:**
+- `isbn`: ISBN único del libro (validación de duplicados en BD)
+- `copies`: Stock total (siempre > 0)
+- `available`: Copias libres para prestar (0 <= available <= copies)
+- Validación en BD: CHECK (copies > 0) y CHECK (available >= 0 AND available <= copies)
+- `@OneToMany`: Relación inversa con Loan
+
+---
+
+### Loan.java - Entidad de Préstamos
+
+```java
+@Entity
+@Table(name = "loans")
+public class Loan {
+    
+    @Id
+    private String id;  // VARCHAR(20) @PK
+    
+    /**
+     * Relación N:1 con User
+     * - @ManyToOne: Muchos Loans → 1 User
+     * - @JoinColumn: Columna book_id en tabla loans
+     * - nullable = false: Todo loan debe tener un usuario
+     * - fetch = FetchType.LAZY: Carga bajo demanda
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    /**
+     * Relación N:1 con Book
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id", nullable = false)
+    private Book book;
+    
+    @Column(nullable = false)
+    private LocalDateTime loanDate;  // TIMESTAMP: cuando se prestó
+    
+    @Column(nullable = false)
+    private LocalDateTime dueDate;  // TIMESTAMP: vencimiento (loanDate + 14 días)
+    
+    @Column(nullable = true)
+    private LocalDateTime returnDate;  // TIMESTAMP: cuando se devuelve (NULL si no devuelto)
+    
+    /**
+     * Estado del préstamo
+     * @Enumerated(EnumType.STRING): persiste como 'ACTIVE' o 'RETURNED' (no números)
+     * - ACTIVE: préstamo vigente
+     * - RETURNED: libro devuelto
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LoanStatus status;
+    
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+        if (loanDate == null) loanDate = LocalDateTime.now();
+        if (dueDate == null) dueDate = loanDate.plusDays(14);  // Vencimiento automático
+        if (status == null) status = LoanStatus.ACTIVE;
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+
+// En archivo separado: LoanStatus.java
+public enum LoanStatus {
+    ACTIVE,      // Préstamo vigente
+    RETURNED     // Devuelto
+}
+```
+
+**Puntos clave:**
+- `@ManyToOne`: Relación hacia User y Book (lado propietario)
+- `@JoinColumn`: Define columnas FK (user_id, book_id)
+- `@Enumerated(EnumType.STRING)`: Persiste enum como texto ('ACTIVE', 'RETURNED'), no números
+- `returnDate`: NULL mientras status = ACTIVE, tiene valor cuando status = RETURNED
+- `dueDate`: Auto-calculada en @PrePersist (loan_date + 14 días)
+
+---
+
+### LoanStatus.java - Enum de Estados
+
+```java
+public enum LoanStatus {
+    ACTIVE,      // Préstamo vigente
+    RETURNED     // Libro devuelto
+}
+```
+
+---
+
+### Anotaciones JPA Más Comunes Utilizadas
+
+| Anotación | Ubicación | Función | Ejemplo |
+|-----------|-----------|---------|---------|
+| `@Entity` | Clase | Marca clase como entidad JPA | `public class Book { ... }` |
+| `@Table` | Clase | Define nombre tabla + restricciones | `@Table(name = "books")` |
+| `@Id` | Campo | Clave primaria | `@Id private String id;` |
+| `@Column` | Campo | Mapeo a columna SQL | `@Column(nullable = false, unique = true)` |
+| `@OneToMany` | Campo | Relación 1:N | `@OneToMany(mappedBy = "book")` |
+| `@ManyToOne` | Campo | Relación N:1 | `@ManyToOne @JoinColumn(name = "book_id")` |
+| `@JoinColumn` | Campo | Columna FK | `@JoinColumn(name = "user_id", nullable = false)` |
+| `@Enumerated` | Campo | Persistencia de Enum | `@Enumerated(EnumType.STRING)` |
+| `@PrePersist` | Método | Hook antes de INSERT | `protected void onCreate() { ... }` |
+| `@PreUpdate` | Método | Hook antes de UPDATE | `protected void onUpdate() { ... }` |
+| `@UniqueConstraint` | @Table | Restricción UNIQUE | `uniqueConstraints = @UniqueConstraint(columnNames = "email")` |
+| `@CascadeType.ALL` | @OneToMany | Cambios cascadan | `cascade = CascadeType.ALL` |
+| `@FetchType.LAZY` | Relación | Carga bajo demanda | `fetch = FetchType.LAZY` |
+
+---
+
+### Diagrama de Relaciones JPA
+
+```
+User (1) ─────────────────────────┐
+  ∧                               │
+  │                               │ @OneToMany(mappedBy="user")
+  │                               │ cascade=CascadeType.ALL
+  │ @ManyToOne                    │ orphanRemoval=true
+  │ @JoinColumn("user_id")        │
+  │                               ↓
+  │                            Loan (N)
+  │                               │
+  │                               │ @ManyToOne
+  │                               │ @JoinColumn("book_id")
+  │                               │
+  └───────────────────────────────┤
+                                   ↓
+                                Book (1) ─────┐
+                                              │
+                                              │ @OneToMany(mappedBy="book")
+                                              │ cascade=CascadeType.ALL
+                                              │ orphanRemoval=true
+                                              ↓
+                                           Loan (N)
+```
+
+---
+
+### Comparativa: Anotaciones JPA vs SQL
+
+| Operación | JPA Anotación | SQL Generado | Beneficio |
+|-----------|--------------|--------------|-----------|
+| PK con auto-increment | `@Id @GeneratedValue` | `PRIMARY KEY AUTO_INCREMENT` | No escribir ID manualmente |
+| Columna NOT NULL | `@Column(nullable = false)` | `NOT NULL` | Validación en BD |
+| Restricción UNIQUE | `@Column(unique = true)` | `UNIQUE(column)` | Evita duplicados |
+| Relación 1:N | `@OneToMany @JoinColumn` | `FOREIGN KEY` | Integridad referencial |
+| Enum | `@Enumerated(STRING)` | `VARCHAR(varor_name)` | Type-safety en Java |
+| Timestamps auto | `@PrePersist @PreUpdate` | `TRIGGER` o `DEFAULT NOW()` | Auditoría automática |
+| Cascada | `@CascadeType.ALL` | `ON DELETE CASCADE` | Cambios propagados |
+| Lazy loading | `@FetchType.LAZY` | `N/A` | Mejor performance |
+
+---
+
+## Capa Repository: Abstracción de Persistencia ✅
+
+### Rol y Responsabilidades del Repository
+
+**¿Qué es un Repository?**
+
+Un Repository es una interfaz que actúa como **abstracción entre la lógica de negocio y la capa de persistencia (BD)**. Spring Data JPA **genera la implementación automáticamente** sin necesidad de código SQL manualmente.
+
+**Principio:** Patrón Repository (Design Patterns - Evans Domain-Driven Design)
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Capa de Negocio                        │
+│               (Service, Controller)                       │
+│                                                            │
+│  userRepository.findByEmail("john@example.com")          │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ↓
+┌──────────────────────────────────────────────────────────┐
+│              Capa Repository (Interfaces)                │
+│                                                            │
+│  public interface UserRepository                         │
+│      extends JpaRepository<User, String> { ... }         │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+           ┌─────────────┴─────────────┐
+           │                           │
+    Método Query              Método @Query
+    (Auto-generado)           (Manual JPQL)
+           │                           │
+           ↓                           ↓
+┌──────────────────────┐  ┌──────────────────────┐
+│  SELECT * FROM ...   │  │  SELECT u FROM User│
+│  WHERE email = ?     │  │  WHERE ...          │
+└──────────────────────┘  └──────────────────────┘
+           │                           │
+           └─────────────┬─────────────┘
+                         ↓
+            ┌────────────────────────────┐
+            │    Base de Datos (H2)      │
+            └────────────────────────────┘
+```
+
+### UserRepository ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/repository/UserRepository.java`
+
+**Responsabilidades:**
+- Buscar usuarios por email, nombre, username
+- Verificar unicidad de email/username
+- Búsquedas flexibles (case-insensitive)
+- Listar usuarios ordenados
+
+**Métodos heredados automáticamente de JpaRepository:**
+
+```java
+@Repository
+public interface UserRepository extends JpaRepository<User, String> {
+    // Métodos automáticos (NO necesitan decorador @Query):
+    
+    save(User user)              // INSERT o UPDATE
+    findById(String id)          // SELECT ... WHERE id = ?
+    findAll()                    // SELECT * FROM users
+    deleteById(String id)        // DELETE WHERE id = ?
+    count()                       // SELECT COUNT(*) FROM users
+    existsById(String id)        // Retorna booleano
+}
+```
+
+**Métodos Query personalizados (Spring JPA genera SQL automáticamente):**
+
+| Firma del Método | SQL Generado | Ejemplo de Uso |
+|------------------|--------------|--------|
+| `Optional<User> findByEmail(String email)` | `SELECT * FROM users WHERE email = ?` | `userRepository.findByEmail("john@ex.com")` |
+| `List<User> findByNameContaining(String name)` | `SELECT * FROM users WHERE name LIKE %?%` | `findByNameContaining("John")` // "John", "Johnny" |
+| `List<User> findByName(String name)` | `SELECT * FROM users WHERE name = ?` | `findByName("John Doe")` |
+| `boolean existsByEmail(String email)` | `SELECT EXISTS(...)` | `existsByEmail("test@ex.com")` |
+| `List<User> findByNameStartingWith(String prefix)` | `SELECT * FROM users WHERE name LIKE ?%` | `findByNameStartingWith("Jo")` |
+
+**Métodos @Query personalizados (JPQL manual):**
+
+```java
+/**
+ * Búsqueda flexible: busca en nombre O email (case-insensitive)
+ * SQL equivalente: SELECT * FROM users WHERE name ILIKE '%term%' OR email ILIKE '%term%'
+ */
+@Query("SELECT u FROM User u " +
+        "WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+        "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+List<User> searchByNameOrEmail(@Param("searchTerm") String searchTerm);
+
+// Uso en servicio:
+List<User> results = userRepository.searchByNameOrEmail("john");
+// Retorna usuarios con "john" en nombre O email
+```
+
+---
+
+### BookRepository ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/repository/BookRepository.java`
+
+**Responsabilidades:**
+- Buscar libros por título, autor, ISBN
+- Verificar disponibilidad de copias
+- Búsquedas por inventario
+- Validar unicidad de ISBN
+
+**Métodos destacados:**
+
+| Firma del Método | SQL Generado | Caso de Uso |
+|------------------|--------------|--------|
+| `List<Book> findByTitle(String title)` | `SELECT * FROM books WHERE title = ?` | Buscar libro exacto |
+| `List<Book> findByTitleContaining(String title)` | `SELECT * FROM books WHERE title LIKE %?%` | ¿Qué libros tienen "Clean" en título? |
+| `List<Book> findByAuthor(String author)` | `SELECT * FROM books WHERE author = ?` | Libros de un autor específico |
+| `List<Book> findByTitleAndAuthor(String title, String author)` | `SELECT * FROM books WHERE title = ? AND author = ?` | Búsqueda precisa |
+| `Optional<Book> findByIsbn(String isbn)` | `SELECT * FROM books WHERE isbn = ? LIMIT 1` | Validar ISBN único |
+| `List<Book> findByCopiesGreaterThan(int copies)` | `SELECT * FROM books WHERE copies > ?` | Libros con stock > N |
+
+**Métodos avanzados:**
+
+```java
+/**
+ * Búsqueda combinada: Libros disponibles/no disponibles
+ * Útil para interfaz: "Mostrar libros disponibles"
+ */
+List<Book> findByAvailable(boolean available);
+
+/**
+ * Búsqueda de inventario: Libros disponibles CON stock
+ */
+List<Book> findByAvailableTrueAndCopiesGreaterThan(int copies);
+
+// Ejemplo de uso en servicio:
+List<Book> availableBooks = bookRepository.findByAvailableTrueAndCopiesGreaterThan(0);
+// Retorna libros que pueden ser prestados
+```
+
+---
+
+### LoanRepository ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/repository/LoanRepository.java`
+
+**Responsabilidades:**
+- Consultar préstamos por usuario, libro, estado
+- Validar límites de préstamos (máx 3 activos por usuario)
+- Detectar préstamos vencidos
+- Auditoría de préstamos históricos
+
+**Métodos por categoría:**
+
+#### 1. Consultas por Usuario
+
+```java
+// Obtener todos los préstamos de un usuario
+List<Loan> findByUserId(String userId);
+
+// Obtener solo préstamos ACTIVOS de un usuario
+List<Loan> findByUserIdAndStatus(String userId, LoanStatus.ACTIVE);
+
+// Contar préstamos activos (más eficiente que findBy...size())
+long countByUserIdAndStatus(String userId, LoanStatus.ACTIVE);
+
+// Ejemplo de validación de límite:
+long activeLoans = loanRepository.countByUserIdAndStatus(userId, LoanStatus.ACTIVE);
+if (activeLoans >= 3) {
+    throw new LoanLimitExceededException("Usuario tiene 3 préstamos activos");
+}
+```
+
+#### 2. Consultas por Libro
+
+```java
+// Obtener todos los préstamos de un libro
+List<Loan> findByBookId(String bookId);
+
+// Préstamos activos de un libro (validar disponibilidad)
+List<Loan> findByBookIdAndStatus(String bookId, LoanStatus.ACTIVE);
+
+// Contar copias de un libro en circulación
+long activeLoans = loanRepository.countByBookIdAndStatus(bookId, LoanStatus.ACTIVE);
+int availableCopies = totalCopies - (int)activeLoans;
+```
+
+#### 3. Consultas por Estado
+
+```java
+// Todos los préstamos activos (para reportes)
+List<Loan> findByStatus(LoanStatus.ACTIVE);
+
+// Contar préstamos devueltos (estadísticas)
+long returnedLoans = loanRepository.countByStatus(LoanStatus.RETURNED);
+```
+
+#### 4. Consultas por Fecha
+
+```java
+// Préstamos realizados en una fecha específica
+List<Loan> findByLoanDate(LocalDate loanDate);
+
+// Préstamos en rango de fechas (auditoría)
+List<Loan> findByLoanDateBetween(LocalDate startDate, LocalDate endDate);
+
+// Préstamos devueltos antes de una fecha
+List<Loan> findByReturnDateBefore(LocalDate date);
+```
+
+#### 5. Consultas Combinadas (Usuario + Libro)
+
+```java
+/**
+ * CRÍTICO: Validar que usuario no tenga préstamo duplicado
+ * Regla: Un usuario NO puede prestar el mismo libro 2 veces simultáneamente
+ */
+Optional<Loan> findByUserIdAndBookIdAndStatus(
+    String userId, 
+    String bookId, 
+    LoanStatus status
+);
+
+// Validación en servicio:
+Optional<Loan> existing = loanRepository
+    .findByUserIdAndBookIdAndStatus(userId, bookId, LoanStatus.ACTIVE);
+if (existing.isPresent()) {
+    throw new IllegalStateException("Usuario ya tiene este libro prestado");
+}
+```
+
+#### 6. Consultas @Query Avanzadas (evitar N+1 queries)
+
+```java
+/**
+ * JOIN FETCH: Carga relaciones en UNA sola consulta (no varias)
+ * Problema N+1: 1 query para préstamos + N queries para cada usuario/libro
+ * Solución: JOIN FETCH carga todo de una vez
+ */
+@Query("SELECT l FROM Loan l " +
+        "JOIN FETCH l.book " +
+        "JOIN FETCH l.user " +
+        "WHERE l.status = :status")
+List<Loan> findAllByStatusWithDetails(@Param("status") LoanStatus status);
+
+// Uso en servicio (sin LazyInitializationException):
+List<Loan> loansDetail = loanRepository
+    .findAllByStatusWithDetails(LoanStatus.ACTIVE);
+// Aquí l.getBook().getTitle() funciona sin error
+
+
+/**
+ * Búsqueda optimizada para perfil de usuario:
+ * Muestra todos los préstamos activos con detalles de libro
+ */
+@Query("SELECT l FROM Loan l " +
+        "JOIN FETCH l.book " +
+        "WHERE l.user.id = :userId AND l.status = :status")
+List<Loan> findByUserIdAndStatusWithDetails(
+    @Param("userId") String userId,
+    @Param("status") LoanStatus status
+);
+```
+
+---
+
+### Patrón de Uso: Repository en Capas
+
+**Flujo típico en la aplicación:**
+
+```
+USER REQUEST (GET /api/loans/user/123)
+         │
+         ↓
+┌─────────────────────────────┐
+│   LoanController.java       │
+│  @GetMapping("/{userId}")   │
+│  public LoanDTO getLoan()   │
+└────────────┬────────────────┘
+             │
+             ↓
+┌─────────────────────────────────────┐
+│    LoanService.java (Negocio)      │
+│  public List<LoanDTO> getActive    │
+│   LoansByUser(String userId) {     │
+│                                     │
+│  1. loanRepository                 │
+│     .findByUserIdAndStatus(        │
+│       userId, ACTIVE)              │
+│                                     │
+│  2. Mapeo: List<Loan> →           │
+│     List<LoanDTO>                  │
+│                                     │
+│  3. return dtos                    │
+└────────────┬────────────────────────┘
+             │
+             ↓
+┌───────────────────────────┐
+│  LoanRepository           │
+│  extends                  │
+│  JpaRepository<Loan, ...> │
+│                           │
+│  findByUserIdAndStatus()  │
+│  ├─ Genera SQL:          │
+│  │ SELECT * FROM loans  │
+│  │ WHERE user_id = ?    │
+│  │ AND status = 'ACTIVE'│
+│  └─ Ejecuta              │
+└────────────┬──────────────┘
+             │
+             ↓
+   ┌─────────────────┐
+   │  Base de Datos  │
+   │   LOANS TABLE   │
+   └─────────────────┘
+```
+
+---
+
+### Resumen de Métodos Repository
+
+| Repository | Clase Base | Métodos Clave | Ubicación |
+|------------|-----------|---------------|-----------|
+| **UserRepository** | `JpaRepository<User, String>` | `findByEmail()`, `findByNameContaining()`, `existsByEmail()` | `core/repository/` |
+| **BookRepository** | `JpaRepository<Book, String>` | `findByTitle()`, `findByAuthor()`, `findByIsbn()`, `findByCopiesGreaterThan()` | `core/repository/` |
+| **LoanRepository** | `JpaRepository<Loan, String>` | `findByUserId()`, `findByUserIdAndStatus()`, `findByUserIdAndBookIdAndStatus()`, `findAllByStatusWithDetails()` | `core/repository/` |
+
+---
+
 ## Paquetes y Clases: Responsabilidad Detallada
+
+### Paquete principal
+
+- Rol: punto de arranque y frontera del escaneo de Spring.
+- Clase:
+	- DoswLibraryApplication: inicia toda la aplicacion.
+
+### config ✅ IMPLEMENTADO
+
+**Rol:** Configuración transversal de la aplicación
+
+**Clases implementadas:**
+
+#### **OpenApiConfig** (@Configuration)
+```
+Responsabilidad: Documentación OpenAPI/Swagger
+
+Configura:
+  ├─ @Bean OpenAPI para metadata global
+  │  ├─ Info: título, descripción, versión (1.0.0)
+  │  ├─ License: información de licencia
+  │  └─ Contact: información del desarrollador
+  │
+  ├─ SecurityScheme para JWT Bearer
+  │  ├─ Type: HTTP
+  │  ├─ Scheme: Bearer
+  │  ├─ bearerFormat: JWT
+  │  └─ Description: Token JWT requerido
+  │
+  └─ SecurityRequirement global
+     └─ Todas las rutas requieren JWT (excepto públicas)
 
 ### Paquete principal
 
@@ -1670,12 +2455,819 @@ Problemas resueltos ✅:
   - ✅ @PreAuthorize("hasRole('ADMIN')") centralizado
 ```
 
+---
+
+## Capa Service: Lógica de Negocio ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/service/`
+
+**Responsabilidad:** Implementar la lógica de negocio, usar Repositories para persistencia, aplicar validaciones y reglas.
+
+### Patrón de la Capa Service
+
+```
+┌─────────────────┐
+│  Controller     │
+│  (HTTP Request) │
+└────────┬────────┘
+         │
+         ↓
+┌──────────────────────────────────┐
+│  Service (Lógica de Negocio)     │
+│                                  │
+│  ✅ Validaciones                 │
+│  ✅ Reglas de negocio            │
+│  ✅ Transacciones                │
+│  ✅ Manejo de excepciones        │
+│  ✅ Orquestación de datos        │
+└────────────┬─────────────────────┘
+             │
+             ↓
+┌──────────────────────────────────┐
+│  Repository (Persistencia)       │
+│                                  │
+│  ✅ CRUD operations              │
+│  ✅ Queries personalizadas       │
+│  ✅ Acceso a BD                  │
+└──────────────────────────────────┘
+```
+
+### Ejemplo: UserService
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class UserService {
+    
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserPersistenceMapper userMapper;
+    
+    /**
+     * Crear nuevo usuario con validaciones
+     * - Email único
+     * - Username único
+     * - Password codificado con BCrypt
+     */
+    public UserDTO createUser(CreateUserDTO dto) {
+        // VALIDACIÓN: verificar unicidad
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new ConflictException("Email ya registrado");
+        }
+        if (userRepository.existsByUsername(dto.getUsername())) {
+            throw new ConflictException("Username ya registrado");
+        }
+        
+        // MAPEO: DTO → Entidad
+        User user = userMapper.toEntity(dto);
+        
+        // CODIFICACIÓN: password en BCrypt
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        
+        // PERSISTENCIA: guardar en BD
+        User saved = userRepository.save(user);
+        
+        // MAPEO: Entidad → DTO (sin password/credenciales)
+        return userMapper.toDTO(saved);
+    }
+    
+    /**
+     * Obtener usuario por email
+     * Lanzar excepción si no existe
+     */
+    public UserDTO getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        return userMapper.toDTO(user);
+    }
+    
+    /**
+     * Búsqueda flexible por nombre o email
+     * Usecase: Búsqueda en perfil de admin
+     */
+    public List<UserDTO> searchUsers(String searchTerm) {
+        List<User> users = userRepository.searchByNameOrEmail(searchTerm);
+        return users.stream()
+            .map(userMapper::toDTO)
+            .collect(Collectors.toList());
+    }
+}
+```
+
+### Reglas de Negocio Clave por Servicio
+
+| Servicio | Regla | Implementación |
+|----------|-------|-----------------|
+| **UserService** | Email/Username únicos | `existsByEmail()`, validación antes de `save()` |
+| **BookService** | ISBN único | `findByIsbn()`, lanzar `ConflictException` si duplicado |
+| **LoanService** | Máx 3 préstamos activos/usuario | `countByUserIdAndStatus()` >= 3 → excepción |
+| **LoanService** | No prestar mismo libro 2 veces | `findByUserIdAndBookIdAndStatus()` debe estar vacío |
+| **LoanService** | dueDate automático | `loanDate + 14 días` calculado en `@PrePersist` |
+| **BookService** | Validar disponibilidad | `available > 0` debe ser verdadero |
+
+---
+
+## Validación de Datos en DTOs ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/controller/dto/`
+
+**Responsabilidad:** Validar entrada HTTP antes de llegar al Service.
+
+### Anotaciones de Validación
+
+```java
+// CreateUserDTO.java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CreateUserDTO {
+    
+    @NotBlank(message = "El nombre no puede estar vacío")
+    @Size(min = 3, max = 100, message = "El nombre debe tener entre 3 y 100 caracteres")
+    private String name;
+    
+    @NotBlank(message = "El email es requerido")
+    @Email(message = "Debe ser un email válido")
+    private String email;
+    
+    @NotBlank(message = "El username es requerido")
+    @Size(min = 3, max = 20, message = "Username entre 3-20 caracteres")
+    private String username;
+    
+    @NotBlank(message = "La contraseña es requerida")
+    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
+    private String password;
+    
+    @NotNull(message = "El DNI es requerido")
+    @Pattern(regexp = "^[0-9]{8,10}$", message = "DNI inválido")
+    private String dni;
+}
+```
+
+### En Controller (activar validación)
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    
+    private final UserService userService;
+    
+    @PostMapping
+    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody CreateUserDTO dto) {
+        // @Valid → Valida dto ANTES de ejecutar el método
+        // Si hay errores → HTTP 400 Bad Request
+        UserDTO created = userService.createUser(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+}
+```
+
+| Anotación | Función | Ejemplo |
+|-----------|---------|---------|
+| `@NotBlank` | No nulo, no vacío, no solo espacios | `@NotBlank private String email` |
+| `@NotNull` | No nulo (pero sí puede estar vacío) | `@NotNull private Integer copies` |
+| `@Size` | Rango de tamaño | `@Size(min=3, max=100)` |
+| `@Email` | Validar formato email | `@Email private String email` |
+| `@Pattern` | Validar con expresión regular | `@Pattern(regexp="^[0-9]{8}$")` |
+| `@Min` / `@Max` | Valores numéricos | `@Min(1) @Max(100)` |
+| `@Future` / `@Past` | Fechas futuras/pasadas | `@Future private LocalDate dueDate` |
+
+---
+
+## Manejo de Errores y Excepciones ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/exception/`
+
+**Responsabilidad:** Mantener consistencia en respuestas de error HTTP.
+
+### Excepciones Customizadas
+
+```java
+// ResourceNotFoundException.java
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+
+// ConflictException.java
+@ResponseStatus(HttpStatus.CONFLICT)
+public class ConflictException extends RuntimeException {
+    public ConflictException(String message) {
+        super(message);
+    }
+}
+
+// LoanLimitExceededException.java
+@ResponseStatus(HttpStatus.BAD_REQUEST)
+public class LoanLimitExceededException extends RuntimeException {
+    public LoanLimitExceededException(String message) {
+        super(message);
+    }
+}
+```
+
+### Global Exception Handler
+
+```java
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+    
+    /**
+     * 404: Recurso no encontrado
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.NOT_FOUND.value())
+            .message(ex.getMessage())
+            .timestamp(LocalDateTime.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+    
+    /**
+     * 409: Conflicto (duplicado, etc.)
+     */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.CONFLICT.value())
+            .message(ex.getMessage())
+            .timestamp(LocalDateTime.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+    
+    /**
+     * 400: Errores de validación
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
+        List<String> errors = ex.getBindingResult()
+            .getFieldErrors()
+            .stream()
+            .map(error -> error.getField() + ": " + error.getDefaultMessage())
+            .collect(Collectors.toList());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .message("Errores de validación")
+            .details(errors)
+            .timestamp(LocalDateTime.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+    
+    /**
+     * 500: Errores internos
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Error interno del servidor", ex);
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+            .message("Error interno del servidor")
+            .timestamp(LocalDateTime.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+}
+```
+
+### ErrorResponse DTO
+
+```java
+@Data
+@Builder
+@AllArgsConstructor
+public class ErrorResponse {
+    private int status;
+    private String message;
+    private List<String> details;
+    private LocalDateTime timestamp;
+}
+```
+
+---
+
+## Autenticación y Autorización con JWT ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/security/`
+
+**Responsabilidad:** Generar tokens JWT, validarlos en cada petición, autorizar por roles.
+
+### JwtService: Generar y Validar Tokens
+
+```java
+@Service
+@Slf4j
+public class JwtService {
+    
+    @Value("${security.jwt.secret}")
+    private String SECRET_KEY;
+    
+    @Value("${security.jwt.expiration-ms}")
+    private long EXPIRATION_TIME;
+    
+    /**
+     * Generar JWT token para usuario autenticado
+     * Payload: userId, email, roles
+     * Expiración: configurable (ej: 1 hora)
+     */
+    public String generateToken(String userId, String email, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", email);
+        claims.put("role", role);
+        
+        return Jwts.builder()
+            .setClaims(claims)
+            .setSubject(userId)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+            .signWith(SignatureAlgorithm.HS512, SECRET_KEY)
+            .compact();
+    }
+    
+    /**
+     * Extraer userId del token (subject)
+     */
+    public String extractUserId(String token) {
+        return Jwts.parser()
+            .setSigningKey(SECRET_KEY)
+            .parseClaimsJws(token)
+            .getBody()
+            .getSubject();
+    }
+    
+    /**
+     * Extraer rol del token
+     */
+    public String extractRole(String token) {
+        return (String) Jwts.parser()
+            .setSigningKey(SECRET_KEY)
+            .parseClaimsJws(token)
+            .getBody()
+            .get("role");
+    }
+    
+    /**
+     * Validar si token es válido (no expirado, firma correcta)
+     */
+    public boolean isTokenValid(String token) {
+        try {
+            Jwts.parser()
+                .setSigningKey(SECRET_KEY)
+                .parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.error("Token inválido: {}", ex.getMessage());
+            return false;
+        }
+    }
+}
+```
+
+### Flujo de Autenticación
+
+```
+1. LOGIN (POST /api/auth/login)
+   ┌─────────────────────────────┐
+   │ { username, password }      │
+   └──────────┬──────────────────┘
+              │
+              ↓
+   ┌──────────────────────────────────────┐
+   │ AuthController                       │
+   │ - Valida credenciales                │
+   │ - Carga User del repositorio         │
+   │ - Compara password (BCrypt)          │
+   └──────────┬───────────────────────────┘
+              │
+              ↓
+   ┌──────────────────────────────────────┐
+   │ JwtService.generateToken()           │
+   │ - userId, email, role como claims   │
+   │ - Firmar con SECRET_KEY              │
+   │ - Retornar JWT                       │
+   └──────────┬───────────────────────────┘
+              │
+              ↓
+   ┌─────────────────────────────┐
+   │ HTTP 200 + { token: "..." } │
+   └─────────────────────────────┘
+
+2. REQUEST PROTEGIDO (GET /api/users)
+   ┌──────────────────────────────────────┐
+   │ Header: Authorization: Bearer <token>│
+   └──────────┬───────────────────────────┘
+              │
+              ↓
+   ┌──────────────────────────────────────┐
+   │ JwtAuthenticationFilter              │
+   │ - Extraer token del Header           │
+   │ - Validar con JwtService             │
+   │ - Crear Authentication               │
+   └──────────┬───────────────────────────┘
+              │
+              ↓
+   ┌──────────────────────────────────────┐
+   │ SecurityContext                      │
+   │ - Almacenar Authentication           │
+   │ - Permitir acceso al Controller      │
+   └──────────────────────────────────────┘
+```
+
+### Autorización por Roles
+
+```java
+@RestController
+@RequestMapping("/api/admin")
+public class AdminController {
+    
+    /**
+     * Solo ADMIN puede acceder
+     * @PreAuthorize("hasRole('ADMIN')")
+     */
+    @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        // Solo usuarios con rol ADMIN pueden ejecutar
+        // Si no → HTTP 403 Forbidden
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * ADMIN o BIBLIOTECARIO
+     */
+    @PostMapping("/books")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BIBLIOTECARIO')")
+    public ResponseEntity<BookDTO> addBook(@Valid @RequestBody CreateBookDTO dto) {
+        // ...
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+}
+```
+
+---
+
+## Logging y Auditoría ✅
+
+**Ubicación:** Configuración en `application.yaml` y anotaciones `@Slf4j`
+
+**Responsabilidad:** Rastrear operaciones importantes, debugging y auditoría.
+
+### Configuración de Logging
+
+```yaml
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    edu.eci.dosw.DOSW_Library: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/dosw-library.log
+    max-size: 10MB
+    max-history: 30
+```
+
+### Logging en Services
+
+```java
+@Service
+@Slf4j  // Lombok proporciona 'log'
+public class UserService {
+    
+    public UserDTO createUser(CreateUserDTO dto) {
+        log.info("Creando nuevo usuario: {}", dto.getUsername());
+        
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            log.warn("Intento de registro con email duplicado: {}", dto.getEmail());
+            throw new ConflictException("Email ya registrado");
+        }
+        
+        try {
+            User user = userRepository.save(userMapper.toEntity(dto));
+            log.info("Usuario creado exitosamente: {} (ID: {})", dto.getUsername(), user.getId());
+            return userMapper.toDTO(user);
+        } catch (Exception ex) {
+            log.error("Error al crear usuario: {}", dto.getUsername(), ex);
+            throw new RuntimeException("Error al crear usuario", ex);
+        }
+    }
+    
+    public UserDTO getUserById(String id) {
+        log.debug("Buscando usuario por ID: {}", id);
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> {
+                log.warn("Usuario no encontrado: {}", id);
+                return new ResourceNotFoundException("Usuario no encontrado");
+            });
+        log.debug("Usuario encontrado: {}", user.getUsername());
+        return userMapper.toDTO(user);
+    }
+}
+```
+
+### Logging en Controllers
+
+```java
+@RestController
+@RequestMapping("/api/users")
+@Slf4j
+public class UserController {
+    
+    private final UserService userService;
+    
+    @PostMapping
+    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody CreateUserDTO dto) {
+        log.info("POST /api/users - Crear usuario: {}", dto.getUsername());
+        UserDTO created = userService.createUser(dto);
+        log.info("Usuario creado exitosamente");
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDTO> getUser(@PathVariable String id) {
+        log.debug("GET /api/users/{} - Obtener usuario", id);
+        UserDTO user = userService.getUserById(id);
+        return ResponseEntity.ok(user);
+    }
+    
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        log.warn("DELETE /api/users/{} - Eliminando usuario (Acción crítica)", id);
+        userService.deleteUser(id);
+        log.info("Usuario eliminado: {}", id);
+        return ResponseEntity.noContent().build();
+    }
+}
+```
+
+### Niveles de Log
+
+| Nivel | Uso | Ejemplo |
+|-------|-----|---------|
+| `TRACE` | Información muy detallada (parámetros SQL) | `log.trace("Parameter: {}", value)` |
+| `DEBUG` | Información de debugging (flujo de entrada/salida) | `log.debug("Buscando usuario por ID: {}", id)` |
+| `INFO` | Eventos importantes (login, creación de recursos) | `log.info("Usuario creado: {}", email)` |
+| `WARN` | Situaciones anómalas pero recuperables | `log.warn("Email duplicado: {}", email)` |
+| `ERROR` | Errores que interrumpen operaciones | `log.error("Error al guardar usuario", ex)` |
+
+---
+
 ## Configuracion y Ejecucion
 
 ### Requisitos
 
 - Java 21
 - Maven Wrapper (incluido)
+
+### Dependencia Spring Data JPA ✅
+
+#### En pom.xml (ya incluida)
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+```
+
+**¿Qué es Spring Data JPA?**
+- Framework que simplifica acceso a datos con JPA/Hibernate
+- Proporciona auto-generación de queries SQL
+- Manejo automático de transacciones
+- Mapeo objeto-relacional (ORM) sin código repetitivo
+
+**¿Por qué lo usamos?**
+- Repositories: interfaz que reemplaza DAO boilerplate
+- Query methods: `findByUsername()`, `findByEmail()` generadas automáticamente
+- @Query: para queries JPQL personalizadas
+- Paginación y ordenamiento built-in
+
+#### Paso a Paso: Cómo funciona Spring Data JPA en DOSW-Library
+
+**PASO 1: Definir una entidad JPA**
+
+```java
+// src/main/java/edu/eci/dosw/DOSW_Library/core/model/Book.java
+
+@Entity
+@Table(name = "books", uniqueConstraints = { @UniqueConstraint(columnNames = "isbn") })
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true, length = 20)
+    private String isbn;
+    
+    @Column(nullable = false, length = 200)
+    private String title;
+    
+    @Column(nullable = false)
+    private Integer copies;
+}
+```
+
+**¿Qué significa?**
+- `@Entity`: Spring Data JPA crea tabla `books` automáticamente
+- `@Id @GeneratedValue`: id se auto-incrementa en BD
+- `@Column`: restricciones de columna (nullable, unique, length)
+- `@Table`: mapping a tabla específica en BD
+
+**PASO 2: Crear interfaz Repository**
+
+```java
+// src/main/java/edu/eci/dosw/DOSW_Library/core/repository/BookRepository.java
+
+@Repository
+public interface BookRepository extends JpaRepository<Book, Long> {
+    
+    // Spring Data genera automáticamente:
+    // - findAll(), findById(id), save(), delete(), etc
+    
+    // Query methods personalizadas (Spring genera SQL automáticamente):
+    Optional<Book> findByIsbn(String isbn);
+    List<Book> findByTitleIgnoreCase(String title);
+    List<Book> findByAuthorIgnoreCase(String author);
+    
+    // Custom queries con @Query:
+    @Query("SELECT b FROM Book b WHERE b.available > 0 ORDER BY b.available DESC")
+    List<Book> findAvailableBooks();
+}
+```
+
+**¿Cómo funciona?**
+- `extends JpaRepository<Book, Long>`: Book = entidad, Long = tipo de ID
+- `findByIsbn(isbn)`: genera `SELECT * FROM books WHERE isbn = ?`
+- `findByTitleIgnoreCase(title)`: genera `SELECT * FROM books WHERE LOWER(title) = LOWER(?)`
+- `@Query(...)`: para queries más complejas
+
+**PASO 3: Usar el Repository en el Service**
+
+```java
+// src/main/java/edu/eci/dosw/DOSW_Library/core/service/BookService.java
+
+@Service
+public class BookService {
+    
+    private final BookRepository bookRepository;
+    
+    // Inyección de BookRepository
+    public BookService(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+    }
+    
+    // Obtener todos los libros
+    public List<Book> getAllBooks() {
+        return bookRepository.findAll();  // SELECT * FROM books
+    }
+    
+    // Obtener libro por ID
+    public Book getBookById(Long id) {
+        return bookRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Book not found"));
+        // SELECT * FROM books WHERE id = ?
+    }
+    
+    // Crear nuevo libro
+    public Book createBook(Book book) {
+        // Validaciones...
+        return bookRepository.save(book);  // INSERT INTO books (...)
+    }
+    
+    // Buscar por ISBN (automática)
+    public Book getBookByIsbn(String isbn) {
+        return bookRepository.findByIsbn(isbn)
+            .orElseThrow(() -> new ConflictException("Book not found"));
+        // SELECT * FROM books WHERE isbn = ?
+    }
+    
+    // Obtener libros disponibles
+    public List<Book> getAvailableBooks() {
+        return bookRepository.findAvailableBooks();
+        // SELECT b FROM Book b WHERE b.available > 0 ORDER BY b.available DESC
+    }
+}
+```
+
+**¿Qué sucede?**
+- `bookRepository.findAll()` → SQL: `SELECT * FROM books`
+- `bookRepository.findById(id)` → SQL: `SELECT * FROM books WHERE id = ?`
+- `bookRepository.save(book)` → SQL: `INSERT ... ON DUPLICATE KEY UPDATE`
+- `bookRepository.findByIsbn(isbn)` → SQL: `SELECT * FROM books WHERE isbn = ?`
+
+**PASO 4: Controller usa el Service**
+
+```java
+// src/main/java/edu/eci/dosw/DOSW_Library/controller/BookController.java
+
+@RestController
+@RequestMapping("/api/books")
+public class BookController {
+    
+    private final BookService bookService;
+    private final BookPersistenceMapper bookMapper;
+    
+    @GetMapping
+    public List<BookDTO> getAllBooks() {
+        List<Book> books = bookService.getAllBooks();  // JPA Query
+        return books.stream()
+            .map(bookMapper::toDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @PostMapping
+    public ResponseEntity<BookDTO> createBook(@Valid @RequestBody CreateBookDTO dto) {
+        Book book = bookMapper.toEntity(dto);
+        Book saved = bookService.createBook(book);  // JPA save()
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(bookMapper.toDTO(saved));
+    }
+}
+```
+
+**Flujo completo:**
+```
+Client HTTP (POST /api/books)
+  ↓
+BookController.createBook(CreateBookDTO)
+  ↓
+BookPersistenceMapper.toEntity(dto)  → Book @Entity
+  ↓
+BookService.createBook(book)
+  ↓
+BookRepository.save(book)  ← Spring Data JPA
+  ↓
+Hibernate genera: INSERT INTO books (title, author, isbn, copies, ...)
+  ↓
+H2 Database ejecuta SQL
+  ↓
+BD retorna Book confirmado (con id auto-generado)
+  ↓
+BookPersistenceMapper.toDTO(book)  → BookDTO
+  ↓
+HTTP 201 Created + BookDTO JSON
+```
+
+#### Configuración en application.properties
+
+```properties
+# H2 Database (por defecto en memoria)
+spring.datasource.url=jdbc:h2:mem:librarydb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# JPA/Hibernate (Spring Data JPA lo configura)
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+
+# ddl-auto opciones:
+#   create: elimina + crea tablas cada vez (DESARROLLO)
+#   create-drop: como create + drop al terminar
+#   update: modifica esquema sin perder datos (TESTING)
+#   validate: solo valida (PRODUCCIÓN)
+spring.jpa.hibernate.ddl-auto=create-drop
+
+# Mostrar SQL generado (DEBUG)
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+# H2 Console web para ver BD
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+```
+
+#### Tabla resumen: Spring Data JPA vs Manual JDBC/SQL
+
+| Operación | JDBC Manual | Spring Data JPA |
+|-----------|------------|-----------------|
+| SELECT * FROM books | `new JdbcTemplate().query(sql)` | `bookRepository.findAll()` |
+| SELECT * FROM books WHERE id = ? | `rs.getInt("id")` repetido | `bookRepository.findById(id)` |
+| SELECT * FROM books WHERE isbn = ? | Query manual JDBC | `bookRepository.findByIsbn(isbn)` |
+| INSERT | `ps.setString(1, ...)` | `bookRepository.save(book)` |
+| UPDATE | `ps.execute()` | `bookRepository.save(book)` |
+| DELETE | `ps.executeUpdate()` | `bookRepository.deleteById(id)` |
+| Transacciones | Manual try/catch | `@Transactional` automático |
+
+**Ventajas:**
+- ✅ Menos código
+- ✅ Menos bugs (sin string casting)
+- ✅ Queries generadas automáticamente
+- ✅ Transacciones manejadas por Spring
 
 ### Ejecutar en Windows
 
@@ -1703,22 +3295,578 @@ Problemas resueltos ✅:
 - OpenAPI JSON: http://localhost:8080/api-docs
 - Consola H2: http://localhost:8080/h2-console
 
-### application.properties relevante
+### application.properties: Configuración Base y Spring Data JPA
+
+**Ver sección anterior "Dependencia Spring Data JPA" para detalles completos de configuración.**
 
 ```properties
-springdoc.api-docs.path=/api-docs
-springdoc.swagger-ui.path=/swagger-ui.html
-
+# ============================================
+# BASE DE DATOS: H2 (en memoria)
+# ============================================
 spring.datasource.url=jdbc:h2:mem:librarydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-spring.jpa.hibernate.ddl-auto=update
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# ============================================
+# SPRING DATA JPA / HIBERNATE
+# ============================================
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=create-drop  # create-drop=desarrollo, update=testing, validate=produccion
+spring.jpa.show-sql=true                   # Mostrar SQL generado (DEBUG)
+spring.jpa.properties.hibernate.format_sql=true  # Formatea SQL legiblemente
+
+# ============================================
+# H2 CONSOLE (acceso web)
+# ============================================
 spring.h2.console.enabled=true
 spring.h2.console.path=/h2-console
 
+# ============================================
+# SWAGGER / SPRINGDOC-OPENAPI
+# ============================================
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+
+# ============================================
+# SEGURIDAD JWT (custom properties)
+# ============================================
 security.jwt.secret=<base64-secret>
 security.jwt.expiration-ms=3600000
 security.auth.username=admin
 security.auth.password=admin1234
 ```
+
+**Acceso rápido durante desarrollo:**
+
+```bash
+# Ver todas las queries SQL que genera Spring Data JPA:
+# Habilitado con spring.jpa.show-sql=true
+
+# Acceder a consola H2 en navegador:
+# http://localhost:8080/h2-console
+# JDBC URL: jdbc:h2:mem:librarydb
+# Usuario: sa
+# Password: (vacío)
+```
+
+---
+
+### Configuración PostgreSQL + application.yaml ✅
+
+**Guía paso a paso para migrar de H2 a PostgreSQL**
+
+#### PASO 1: Instalar PostgreSQL
+
+**En Windows:**
+1. Descarga: https://www.postgresql.org/download/windows/
+2. Ejecuta el instalador oficial
+3. **Importante:** Anota la contraseña del usuario `postgres`
+4. Puerto por defecto: `5432`
+5. Verifica instalación en PowerShell:
+```bash
+psql --version
+```
+
+**En Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+**En macOS:**
+```bash
+brew install postgresql@15
+brew services start postgresql
+```
+
+---
+
+#### PASO 2: Crear Base de Datos PostgreSQL
+
+Abre PowerShell/Terminal y conecta:
+
+```bash
+psql -U postgres
+```
+
+Ingresa la contraseña que configuraste. Luego ejecuta:
+
+```sql
+-- Crear base de datos para DOSW Library
+CREATE DATABASE dosw_library_db;
+
+-- Verificar que se creó
+\l
+
+-- Salir
+\q
+```
+
+**Resultado esperado:**
+```
+dosw_library_db | postgres | UTF8 | ...
+```
+
+---
+
+#### PASO 3: Agregar Dependencia PostgreSQL al pom.xml
+
+Abre [pom.xml](pom.xml) y busca la sección `<dependencies>`. Después de la dependencia H2, agrega:
+
+```xml
+<!-- PostgreSQL JDBC Driver -->
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>42.7.1</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+Maven descargará el driver automáticamente.
+
+---
+
+#### PASO 4: Crear y Configurar application.yaml
+
+En `src/main/resources/`, crea un archivo llamado **`application.yaml`**:
+
+```yaml
+# ============================================
+# APPLICATION
+# ============================================
+spring:
+  application:
+    name: dosw-library
+
+  # ============================================
+  # DATASOURCE: PostgreSQL
+  # ============================================
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dosw_library_db
+    username: postgres
+    password: <tu_contraseña>  # Reemplaza con la contraseña de instalación
+    driverClassName: org.postgresql.Driver
+
+  # ============================================
+  # JPA / HIBERNATE
+  # ============================================
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop  # Opciones: create-drop (desarrollo), update (testing), validate (producción)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+
+  # ============================================
+  # H2 CONSOLE (mantener para testing opcional)
+  # ============================================
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# ============================================
+# SPRINGDOC / SWAGGER
+# ============================================
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+
+# ============================================
+# SEGURIDAD JWT (custom properties)
+# ============================================
+security:
+  jwt:
+    secret: "my-secret-key-dosw-library-spring-boot-jwt-token-generation-and-validation-key-2026"
+    expiration-ms: 3600000  # 1 hora
+  auth:
+    username: admin
+    password: admin1234
+
+# ============================================
+# LOGGING
+# ============================================
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+```
+
+**Explicación de parámetros clave:**
+
+| Parámetro | Significado |
+|-----------|------------|
+| `jdbc:postgresql://localhost:5432/dosw_library_db` | Conexión a PostgreSQL en puerto 5432 |
+| `username: postgres` | Usuario por defecto de PostgreSQL |
+| `password: <contraseña>` | LA CONTRASEÑA QUE PUSISTE EN INSTALACIÓN |
+| `PostgreSQLDialect` | Dialect específico para PostgreSQL |
+| `ddl-auto: create-drop` | Crea tablas al iniciar, las elimina al terminar (DESARROLLO) |
+| `show-sql: true` | Muestra todas las queries SQL en consola |
+| `format_sql: true` | Las formatea legiblemente |
+| `batch_size: 20` | Agrupa 20 inserts en una operación |
+
+---
+
+#### PASO 5: Desactivar application.properties (Opcional)
+
+Si deseas usar SOLO YAML, renombra el archivo properties:
+
+```bash
+# En Windows PowerShell
+Rename-Item src/main/resources/application.properties application.properties.bak
+
+# En Linux/macOS
+mv src/main/resources/application.properties src/main/resources/application.properties.bak
+```
+
+**Nota:** Si dejas ambos archivos, Spring usa `.yaml` con prioridad.
+
+---
+
+#### PASO 6: Verificar Conexión a PostgreSQL
+
+Abre terminal en VS Code y ejecuta:
+
+```bash
+cd E:\DOSW\DOSW\DOSW-Library
+mvn spring-boot:run
+```
+
+**Esperado en la consola (líneas que buscar):**
+
+```
+Starting DoswLibraryApplication...
+HikariPool-1 - Starting...
+HikariPool-1 - Init completed in 500ms
+```
+
+**Si ves esto, la conexión funcionó ✅:**
+```
+Hibernate: CREATE TABLE users (...)
+Hibernate: CREATE TABLE books (...)
+Hibernate: CREATE TABLE loans (...)
+```
+
+**Si hay error de conexión ❌:**
+```
+ERROR org.postgresql.Driver - Connection refused
+```
+→ Verifica que PostgreSQL está corriendo y la contraseña es correcta.
+
+---
+
+#### PASO 7: Verificar Tablas en pgAdmin (GUI PostgreSQL)
+
+1. Abre **pgAdmin** (se instaló con PostgreSQL, o descárgalo: https://www.pgadmin.org/)
+2. Login con usuario postgres
+3. Haz clic en **Servers** → **PostgreSQL** → **Databases**
+4. Deberías ver: `dosw_library_db`
+5. Expande: **dosw_library_db** → **Schemas** → **public** → **Tables**
+6. Deberías ver: `users`, `books`, `loans` (creadas automáticamente por Hibernate)
+
+---
+
+#### Tabla Resumen: H2 vs PostgreSQL
+
+| Parámetro | H2 (Antes) | PostgreSQL (Ahora) |
+|-----------|-----------|------------------|
+| **Driver** | `org.h2.Driver` | `org.postgresql.Driver` |
+| **URL** | `jdbc:h2:mem:librarydb` | `jdbc:postgresql://localhost:5432/dosw_library_db` |
+| **Dialect** | `H2Dialect` | `PostgreSQLDialect` |
+| **Datos** | En memoria (se pierden al terminar) | En disco (permanente) |
+| **Puerto** | N/A | 5432 |
+| **Usuario** | `sa` | `postgres` |
+| **Contraseña** | (vacío) | (aquella que configuraste) |
+| **Uso** | Desarrollo rápido | Producción/Testing |
+
+---
+
+#### Troubleshooting
+
+**Error: "Connection refused"**
+```bash
+# Verifica que PostgreSQL está corriendo
+pg_isready
+
+# Verifica puerto 5432 (Windows)
+netstat -tuln | findstr 5432
+
+# Verifica puerto 5432 (Linux/macOS)
+lsof -i :5432
+```
+
+**Error: "role postgres does not exist"**
+- ✅ Verifica usuario correcto en `application.yaml`
+- ✅ O crea nuevo usuario: `CREATE USER dosw_user WITH PASSWORD 'password';`
+
+**Error: "database dosw_library_db does not exist"**
+- ✅ Ejecuta el comando `CREATE DATABASE` del PASO 2
+
+**Error: "password authentication failed"**
+- ✅ Verifica que la contraseña en `application.yaml` es exacta (case-sensitive)
+- ✅ Reinicia PostgreSQL después de cambiar contraseña
+
+**Error: "La clave privada está en formato no soportado"**
+- ✅ PostgreSQL 13+ requiere: `CREATE USER usuario WITH PASSWORD 'pass' ENCRYPTED;`
+
+---
+
+#### URL de acceso con PostgreSQL
+
+- API base: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- OpenAPI JSON: http://localhost:8080/api-docs
+- pgAdmin (GUI): http://localhost:5050 (si está instalado)
+
+---
+
+## 📋 Implementación Práctica: Setup Real de PostgreSQL + application.yaml
+
+### ✅ Paso 1: Verificación del Entorno
+
+**Estado del Sistema:**
+- PostgreSQL: No instalado aún en el sistema
+- Docker: No disponible
+- Alternativa: Se han preparado pasos para instalar PostgreSQL en Windows
+
+### ✅ Paso 2: Crear archivo application.yaml
+
+**Archivo creado**: `src/main/resources/application.yaml`
+
+El archivo ha sido generado con la siguiente estructura:
+
+```yaml
+spring:
+  application:
+    name: DOSW-Library
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dosw_library_db
+    username: postgres
+    password: postgres123  # CAMBIAR a tu contraseña
+    driverClassName: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+```
+
+**Características incluidas:**
+- ✅ Conexión a PostgreSQL en puerto 5432
+- ✅ Pool de conexiones HikariCP (máximo 10 conexiones)
+- ✅ Hibernate DDL en modo `create-drop` (desarrollo)
+- ✅ Mostrar SQL queries en consola
+- ✅ Logging configurado para DEBUG en capas service/controller
+- ✅ Swagger UI habilitado en `/swagger-ui.html`
+
+### ✅ Paso 3: Instalar PostgreSQL en Windows
+
+Como PostgreSQL no está instalado, sigue estos pasos en tu máquina:
+
+**INSTALACIÓN (Windows):**
+
+1. **Descargar PostgreSQL:**
+   - Ve a: https://www.postgresql.org/download/windows/
+   - Descarga PostgreSQL 15+ (Latest versión)
+   - Ejecuta el instalador `.exe`
+
+2. **Durante la instalación:**
+   ```
+   Installation Directory: C:\Program Files\PostgreSQL\15
+   Port: 5432 (default)
+   Superuser: postgres
+   PASSWORD: [ESCRIBE Y ANOTA UNA CONTRASEÑA SEGURA]
+   ```
+   
+   **⚠️ IMPORTANTE:** Memoriza esta contraseña, la necesitarás en `application.yaml`
+
+3. **Verificar instalación:**
+   ```powershell
+   psql --version
+   # Output: psql (PostgreSQL) 15.x
+   ```
+
+### ✅ Paso 4: Crear Base de Datos `dosw_library_db`
+
+Abre **PowerShell** o **Command Prompt** y ejecuta:
+
+```powershell
+# Conecta a PostgreSQL como superuser
+psql -U postgres
+
+# Ingresa la contraseña que configuraste
+```
+
+Dentro de la consola `psql`:
+
+```sql
+-- Crear base de datos
+CREATE DATABASE dosw_library_db;
+
+-- Verificar que se creó
+\l
+
+-- Ver conexión actual
+\conninfo
+
+-- Salir
+\q
+```
+
+**Resultado esperado en `\l`:**
+```
+dosw_library_db | postgres | UTF8 | en_US.UTF-8 | en_US.UTF-8
+```
+
+### ✅ Paso 5: Actualizar application.yaml con tu Contraseña
+
+Abre `src/main/resources/application.yaml` y reemplaza:
+
+```yaml
+# ANTES:
+password: postgres123
+
+# DESPUÉS (con tu contraseña):
+password: TU_CONTRASEÑA_REAL
+```
+
+### ✅ Paso 6: Ejecutar la Aplicación
+
+Desde la raíz del proyecto:
+
+```powershell
+cd e:\DOSW\DOSW\DOSW-Library
+
+# Compilar y ejecutar con Maven
+mvn clean spring-boot:run
+```
+
+**Espera a ver en la consola:**
+```
+Starting DoswLibraryApplication v1.0 on DESKTOP-XXXX with PID...
+Started DoswLibraryApplication in 3.456 seconds (JVM running for 4.123)
+HikariPool-1 - Starting HikariCP connection pool
+HikariPool-1 - Init completed in XXms
+Hibernate: CREATE TABLE users (...)
+Hibernate: CREATE TABLE books (...)
+Hibernate: CREATE TABLE loans (...)
+```
+
+### ✅ Paso 7: Verificar Conexión
+
+1. **En la consola:**
+   - Busca "HikariPool-1 - Init completed" → ✅ Conexión exitosa
+   - Si ves "Connection refused" → ❌ PostgreSQL no está corriendo
+
+2. **Acceder a Swagger UI:**
+   - Abre: http://localhost:8080/swagger-ui.html
+   - Deberías ver todos los endpoints
+
+3. **Verificar tablas con pgAdmin (GUI):**
+   - Descarga pgAdmin: https://www.pgadmin.org/
+   - O usa psql en terminal:
+     ```sql
+     psql -U postgres -d dosw_library_db
+     \dt  # Listar todas las tablas
+     ```
+
+### ✅ Paso 8: Probar un Endpoint
+
+**Crear un usuario (POST):**
+```bash
+curl -X POST http://localhost:8080/api/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "username": "testuser",
+    "password": "Pass1234!",
+    "fullName": "Test User",
+    "dni": "1234567890",
+    "role": "USUARIO"
+  }'
+```
+
+**Si todo funciona, verás:**
+```json
+{
+  "id": "user_uuid_aqui",
+  "email": "test@example.com",
+  "username": "testuser",
+  "fullName": "Test User",
+  "role": "USUARIO"
+}
+```
+
+### 🔧 Troubleshooting - Si Algo Falla
+
+**Problema: "psql: could not connect to server"**
+```powershell
+# Verificar que PostgreSQL está corriendo (Windows Services)
+Get-Service postgresql-x64-15 | Start-Service
+
+# O usar pg_isready
+pg_isready -h localhost -p 5432
+```
+
+**Problema: "password authentication failed"**
+- Verifica la contraseña en `application.yaml` es idéntica
+- Las contraseñas son case-sensitive
+- Reinicia PostgreSQL después de cambiarla
+
+**Problema: "database dosw_library_db does not exist"**
+```sql
+-- Conecta como postgres y verifica
+psql -U postgres
+\l
+-- Si no existe, crea:
+CREATE DATABASE dosw_library_db;
+```
+
+**Problema: "HikariPool error"**
+- Espera 5-10 segundos que PostgreSQL termine de iniciar
+- Verifica puerto 5432 no esté en uso:
+  ```powershell
+  netstat -ano | findstr 5432
+  ```
+
+### 📊 Resumen de Configuración Aplicada
+
+| Aspecto | Valor |
+|--------|-------|
+| **Database** | PostgreSQL 15+ |
+| **JDBC URL** | `jdbc:postgresql://localhost:5432/dosw_library_db` |
+| **Username** | `postgres` |
+| **Password** | `[Tu contraseña de instalación]` |
+| **Driver** | `org.postgresql.Driver` |
+| **Hibernate Dialect** | `PostgreSQLDialect` |
+| **DDL Strategy** | `create-drop` (desarrollo) |
+| **Connection Pool** | HikariCP (10 máx) |
+| **Logging** | DEBUG para capas de aplicación |
+| **Swagger** | `/swagger-ui.html` |
+
+### 📝 Próximos Pasos
+
+1. ✅ Instala PostgreSQL (si no lo has hecho)
+2. ✅ Crea la base de datos `dosw_library_db`
+3. ✅ Actualiza `password` en `application.yaml`
+4. ✅ Ejecuta `mvn clean spring-boot:run`
+5. ✅ Verifica conexión en Swagger UI
+6. ✅ Prueba crear un usuario con el endpoint POST /api/users
 
 ## Endpoints Implementados
 

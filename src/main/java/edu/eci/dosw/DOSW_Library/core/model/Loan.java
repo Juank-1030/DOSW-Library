@@ -1,5 +1,6 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 @Builder
 @ToString(exclude = { "book", "user" })
 @EqualsAndHashCode(of = "id")
+@Entity
 @Table(name = "loans")
 public class Loan {
     @Id

@@ -1,11 +1,15 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -15,16 +19,22 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = "loans")
 @EqualsAndHashCode(of = "id")
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "email", name = "uk_users_email"),
+        @UniqueConstraint(columnNames = "username", name = "uk_users_username"),
+        @UniqueConstraint(columnNames = "dni", name = "uk_users_dni")
+})
 public class User {
     @Id
     private String id;
@@ -50,14 +60,27 @@ public class User {
     /**
      * NUEVO: Rol del usuario (BIBLIOTECARIO, USUARIO)
      */
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 50)
     private String role;
+
+    /**
+     * NUEVO: DNI único del usuario
+     */
+    @Column(nullable = false, unique = true, length = 15)
+    private String dni;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * Relación 1:N con Loan (un usuario puede tener muchos préstamos)
+     * orphanRemoval=true: elimina préstamos huérfanos cuando se elimina el usuario
+     */
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Loan> loans = new ArrayList<>();
 
     public User(String id, String name) {
         this.id = id;
