@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
  * </p>
  * <ul>
  * <li>POST /auth/login - Autenticar usuario y obtener JWT</li>
+ * <li>POST /auth/register - Registrar nuevo usuario (USER por defecto)</li>
+ * <li>DELETE /auth/users/{userId} - Eliminar usuario (solo LIBRARIAN)</li>
  * </ul>
  * 
  * <p>
@@ -43,7 +45,7 @@ import org.springframework.web.bind.annotation.*;
  * </ul>
  * 
  * @author DOSW Company
- * @version 1.0
+ * @version 2.0 - Con registro y eliminación de usuarios
  */
 @RestController
 @RequestMapping("/auth")
