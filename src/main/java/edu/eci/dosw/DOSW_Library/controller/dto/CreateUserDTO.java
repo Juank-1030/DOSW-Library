@@ -39,4 +39,21 @@ public class CreateUserDTO {
     @Schema(description = "Correo electrónico del usuario (opcional)", example = "john.doe@example.com", format = "email")
     @JsonProperty("email")
     private String email;
+
+    @NotBlank(message = "Username cannot be empty")
+    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+    @Schema(description = "Nombre de usuario para login (único)", example = "johndoe", required = true, minLength = 3, maxLength = 50)
+    @JsonProperty("username")
+    private String username;
+
+    @NotBlank(message = "Password cannot be empty")
+    @Size(min = 6, max = 255, message = "Password must be between 6 and 255 characters")
+    @Schema(description = "Contraseña del usuario (será hasheada con BCrypt)", example = "SecurePassword123!", required = true, minLength = 6)
+    @JsonProperty("password")
+    private String password;
+
+    @Schema(description = "Rol del usuario", example = "USUARIO", allowableValues = { "ADMIN", "BIBLIOTECARIO",
+            "USUARIO" }, required = false)
+    @JsonProperty("role")
+    private String role;
 }

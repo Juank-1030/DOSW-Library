@@ -334,8 +334,8 @@ public class BookValidator {
      * <b>Regla de negocio:</b>
      * </p>
      * <ul>
-     * <li>available debe ser true si copies > 0</li>
-     * <li>available debe ser false si copies = 0</li>
+     * <li>available debe ser > 0 si copies > 0</li>
+     * <li>available debe ser 0 si copies = 0</li>
      * </ul>
      * 
      * @param book Libro a validar
@@ -348,12 +348,12 @@ public class BookValidator {
             return errors;
         }
 
-        boolean shouldBeAvailable = book.getCopies() > 0;
-        boolean isAvailable = book.isAvailable();
+        int shouldBeAvailable = book.getCopies();
+        int isAvailable = book.getAvailable();
 
         if (shouldBeAvailable != isAvailable) {
             errors.add(String.format(
-                    "Book availability is inconsistent: copies=%d but available=%b (should be %b)",
+                    "Book availability is inconsistent: copies=%d but available=%d (should be %d)",
                     book.getCopies(),
                     isAvailable,
                     shouldBeAvailable));
@@ -432,7 +432,8 @@ public class BookValidator {
      * Valida que un libro esté marcado como disponible.
      * 
      * @param book Libro a validar
-     * @return true si está disponible, false en caso contrario
+     * @return true si tiene copias disponibles (available > 0), false en caso
+     *         contrario
      */
     public boolean isAvailableForLoan(Book book) {
         if (book == null) {
@@ -440,13 +441,12 @@ public class BookValidator {
             return false;
         }
 
-        boolean available = book.isAvailable() && book.getCopies() > 0;
+        boolean available = book.getAvailable() > 0;
 
-        logger.debug("Book {} is available for loan? {} (available: {}, copies: {})",
+        logger.debug("Book {} is available for loan? {} (available: {})",
                 book.getId(),
                 available,
-                book.isAvailable(),
-                book.getCopies());
+                book.getAvailable());
 
         return available;
     }

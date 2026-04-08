@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO para transferir información completa de un préstamo.
@@ -35,18 +35,23 @@ public class LoanDTO {
     @JsonProperty("user")
     private UserDTO user;
 
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    @Schema(description = "Fecha en que se realizó el préstamo", example = "2024-01-15", type = "string", format = "date", required = true)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @Schema(description = "Fecha y hora en que se realizó el préstamo", example = "2024-01-15T10:30:00", type = "string", format = "date-time", required = true)
     @JsonProperty("loanDate")
-    private LocalDate loanDate;
+    private java.time.LocalDateTime loanDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @Schema(description = "Fecha y hora vencimiento del préstamo", example = "2024-02-15T10:30:00", type = "string", format = "date-time", required = true)
+    @JsonProperty("dueDate")
+    private java.time.LocalDateTime dueDate;
 
     @Schema(description = "Estado actual del préstamo", example = "ACTIVE", allowableValues = { "ACTIVE",
             "RETURNED" }, required = true)
     @JsonProperty("status")
     private String status;
 
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    @Schema(description = "Fecha en que se devolvió el libro (solo si status es RETURNED)", example = "2024-01-30", type = "string", format = "date")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @Schema(description = "Fecha y hora en que se devolvió el libro (solo si status es RETURNED)", example = "2024-01-30T14:45:00", type = "string", format = "date-time")
     @JsonProperty("returnDate")
-    private LocalDate returnDate;
+    private java.time.LocalDateTime returnDate;
 }

@@ -104,7 +104,7 @@ public class BookService {
 
         // Establecer copias y disponibilidad
         book.setCopies(copies);
-        book.setAvailable(copies > 0);
+        book.setAvailable(copies); // available es Integer (cantidad), no boolean
 
         // Guardar en "base de datos"
         bookInventory.put(book.getId(), book);
@@ -113,7 +113,7 @@ public class BookService {
         logger.debug("Book added successfully. Current inventory size: {}", bookInventory.size());
         logger.info("Book {} registered | Available: {} | Copies: {}",
                 book.getId(),
-                book.isAvailable(),
+                book.getAvailable(),
                 copies);
 
         return book;
@@ -299,13 +299,13 @@ public class BookService {
         // Actualizar copias
         bookCopies.put(bookId, newCopies);
 
-        // Actualizar disponibilidad en la entidad
+        // Actualizar disponibilidad en la entidad (available es Integer, no boolean)
         Book book = bookInventory.get(bookId);
         book.setCopies(newCopies);
-        book.setAvailable(newCopies > 0);
+        book.setAvailable(newCopies); // Asignar cantidad directamente
 
         logger.info("Book {} availability updated: {} -> {} copies | Available: {}",
-                bookId, currentCopies, newCopies, book.isAvailable());
+                bookId, currentCopies, newCopies, book.getAvailable());
     }
 
     /**
@@ -338,10 +338,10 @@ public class BookService {
 
         Book book = bookInventory.get(bookId);
         book.setCopies(newQuantity);
-        book.setAvailable(newQuantity > 0);
+        book.setAvailable(newQuantity); // Asignar cantidad directamente, no boolean
 
         logger.info("Book {} copies set: {} -> {} | Available: {}",
-                bookId, oldCopies, newQuantity, book.isAvailable());
+                bookId, oldCopies, newQuantity, book.getAvailable());
     }
 
     // ============================================

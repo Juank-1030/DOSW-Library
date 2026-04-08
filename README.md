@@ -12,17 +12,18 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
 4. [Arquitectura del Proyecto](#arquitectura-del-proyecto)
 5. [Anotaciones y Por Que Se Usan](#anotaciones-y-por-que-se-usan)
 6. [Estructura de Paquetes](#estructura-de-paquetes)
-7. [Paquetes y Clases: Responsabilidad Detallada](#paquetes-y-clases-responsabilidad-detallada)
-8. [Configuracion y Ejecucion](#configuracion-y-ejecucion)
-9. [Endpoints Implementados](#endpoints-implementados)
-10. [Flujos Funcionales Clave](#flujos-funcionales-clave)
-11. [Flujo Entre Paquetes y Clases](#flujo-entre-paquetes-y-clases)
-12. [Explicacion Paso a Paso: Flujos con Codigo Real](#explicacion-paso-a-paso-flujos-con-codigo-real)
-13. [Explicacion de Todas las Clases](#explicacion-de-todas-las-clases)
-14. [Como Implementar y Extender el Proyecto](#como-implementar-y-extender-el-proyecto)
-15. [Pruebas y Cobertura Actual](#pruebas-y-cobertura-actual)
-16. [Riesgos Tecnicos y Mejoras Recomendadas](#riesgos-tecnicos-y-mejoras-recomendadas)
-17. [Glosario](#glosario)
+7. [Modelo Entidad-Relación Normalizado a 3FN](#modelo-entidad-relación-normalizado-a-3fn)
+8. [Paquetes y Clases: Responsabilidad Detallada](#paquetes-y-clases-responsabilidad-detallada)
+9. [Configuracion y Ejecucion](#configuracion-y-ejecucion)
+10. [Endpoints Implementados](#endpoints-implementados)
+11. [Flujos Funcionales Clave](#flujos-funcionales-clave)
+12. [Flujo Entre Paquetes y Clases](#flujo-entre-paquetes-y-clases)
+13. [Explicacion Paso a Paso: Flujos con Codigo Real](#explicacion-paso-a-paso-flujos-con-codigo-real)
+14. [Explicacion de Todas las Clases](#explicacion-de-todas-las-clases)
+15. [Como Implementar y Extender el Proyecto](#como-implementar-y-extender-el-proyecto)
+16. [Pruebas y Cobertura Actual](#pruebas-y-cobertura-actual)
+17. [Riesgos Tecnicos y Mejoras Recomendadas](#riesgos-tecnicos-y-mejoras-recomendadas)
+18. [Glosario](#glosario)
 
 ## Resumen Ejecutivo
 
@@ -73,10 +74,11 @@ Construir una API de biblioteca robusta para practicar principios de arquitectur
 
 ### Vista de capas
 
-- Capa de presentacion: controladores REST, DTOs y mappers
-- Capa de negocio: servicios, validadores y excepciones
-- Capa de persistencia/modelo: entidades y repositorios JPA
-- Capa transversal: seguridad JWT, configuracion OpenAPI, utilidades
+- **Capa de presentacion**: controladores REST, DTOs y mappers (`controller`)
+- **Capa de negocio**: servicios, validadores, excepciones (`core.service`)
+- **Capa de dominio**: modelos de negocio que SON entidades JPA (`core.model` con @Entity)
+- **Capa de persistencia**: repositorios JPA y DAOs para queries complejas (`persistence`)
+- **Capa transversal**: seguridad JWT, configuracion OpenAPI, utilidades (`security`, `config`)
 
 ### Principio de diseno aplicado
 
@@ -84,10 +86,103 @@ Cada clase existe para resolver una responsabilidad concreta:
 
 - Controllers: exponen HTTP y delegan
 - Services: aplican reglas de negocio
-- Mappers: convierten Entity <-> DTO
+- Mappers (persistence.mapper): convierten en ambas direcciones: DTO ↔ Model ↔ Entity
 - Validators: concentran validacion semantica
 - Exception Handler: estandariza errores
 - Security: autentica y autoriza
+
+### Arquitectura de capas (vea Estructura de Paquetes)
+
+```
+┌─────────────────────────────────────────────────────┐
+│  HTTP LAYER (Client: navegador, postman, otra app) │
+└──────────────────┬──────────────────────────────────┘
+                   │ JSON Request/Response
+                   ↓
+┌─────────────────────────────────────────────────────┐
+│  PRESENTATION LAYER (controller)                    │
+│  - BookController, UserController, LoanController  │
+│  - Exponen DTOs y manejan routing HTTP              │
+└──────────────────┬──────────────────────────────────┘
+                   │ Mapeo: DTO → Model/Domain
+                   ↓
+┌─────────────────────────────────────────────────────┐
+│  MAPPER LAYER (persistence.mapper) ✅ CONSOLIDADO │
+│  - BookPersistenceMapper, UserPersistenceMapper,     │
+│    LoanPersistenceMapper                            │
+│  - Convierten: DTO ↔ Model ↔ Entity (4-tier)        │
+└──────────────────┬──────────────────────────────────┘
+                   │ Objetos de dominio
+                   ↓
+┌─────────────────────────────────────────────────────┐
+│  BUSINESS LOGIC LAYER (core.service)                │
+│  - BookService, UserService, LoanService            │
+│  - Aplican reglas de negocio y validaciones         │
+│  - Orquestan persistencia y cross-domain logic      │
+└──────────────────┬──────────────────────────────────┘
+                   │ Modelos de dominio validados
+                   ↓
+┌─────────────────────────────────────────────────────┐
+│  PERSISTENCE LAYER (persistence.*)                  │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ core.model.*: Book, User, Loan              │   │
+│  │ - SON entidades JPA (@Entity, @Table)       │   │
+│  │ - Modelos de dominio + persistencia en uno  │   │
+│  │ - No hay transformacion Entity ↔ Model      │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ persistence.repository: JpaRepository       │   │
+│  │ - Queries CRUD automaticas + custom queries │   │
+│  │ - findById(), save(), findByUsername(), etc │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ persistence.dao: BookDAO, UserDAO, LoanDAO  │   │
+│  │ - Operaciones batch y queries complejas     │   │
+│  │ - decrementAvailableCopies(), renovarLoan() │   │
+│  └─────────────────────────────────────────────┘   │
+└──────────────────┬──────────────────────────────────┘
+                   │ SQL Queries
+                   ↓
+┌─────────────────────────────────────────────────────┐
+│  DATABASE LAYER (H2 en memoria)                     │
+│  - Tablas: books, users, loans                      │
+│  - Constraints: FK, UNIQUE, CHECK, NOT NULL        │
+│  - Normalizacion: 3FN en todas las tablas           │
+└─────────────────────────────────────────────────────┘
+
+CROSS-CUTTING CONCERNS:
+  - security.*: JWT authentication, authorization
+  - config.*: OpenAPI, bean definitions
+  - core.exception.*: Global error handler
+  - core.util.*: Constants, DateUtil, IdGeneratorUtil
+```
+
+**Flujo típico de un POST /api/loans:**
+
+```
+[Cliente HTTP]
+    ↓ POST JSON (user_id, book_id)
+[LoanController.createLoan()]
+    ↓ @Valid CreateLoanDTO (validacion Jakarta)
+[LoanPersistenceMapper.toDomain()] → Loan model (@Entity)
+    ↓ Loan object (dominio + JPA entity)
+[LoanService.createLoan()] → aplica reglas
+    ↓ Loan validado (dominio)
+[LoanRepository.save(loan)]
+    ↓ INSERT en tabla loans (BD via JPA/Hibernate)
+[H2 Database]
+    ↓ COMMIT (transaccion)
+[LoanRepository.findById()] → Loan desde BD
+    ↓ Loan confirmado (dominio)
+[LoanPersistenceMapper.toDTO()] → LoanDTO
+    ↓ HTTP 201 Created + LoanDTO JSON
+[Cliente HTTP] ← Response
+```
+
+**Diferencia clave con arquitecturas anteriores:**
+- ✅ ANTES: DTO → Model → Entity → BD (3 clases)
+- ✅ AHORA: DTO → Model (@Entity) → BD (2 clases)
+- El Model ES la entidad JPA, no hay mapeo redundante Model ↔ Entity
 
 ## Anotaciones y Por Que Se Usan
 
@@ -233,23 +328,21 @@ edu.eci.dosw.DOSW_Library
 |   |   |-- LoanDTO.java
 |   |   |-- LoanSummaryDTO.java
 |   |-- mapper
-|       |-- BookMapper.java
-|       |-- UserMapper.java
-|       |-- LoanMapper.java
+|       |-- ❌ ELIMINADA (consolidada en persistence/mapper)
 |-- core
-|   |-- model
-|   |   |-- Book.java
-|   |   |-- User.java
-|   |   |-- Loan.java
-|   |   |-- LoanStatus.java
+|   |-- model                        (Entidades JPA + Modelos de dominio)
+|   |   |-- Book.java               (@Entity, @Table("books"))
+|   |   |-- User.java               (@Entity, @Table("users"))
+|   |   |-- Loan.java               (@Entity, @Table("loans"))
+|   |   |-- LoanStatus.java         (Enum)
 |   |-- service
 |   |   |-- BookService.java
 |   |   |-- UserService.java
 |   |   |-- LoanService.java
-|   |-- repository
-|   |   |-- BookRepository.java
-|   |   |-- UserRepository.java
-|   |   |-- LoanRepository.java
+|   |-- repository             (En core, no en persistence - Aqui van los JpaRepository)
+|   |   |-- BookRepository.java      (extends JpaRepository<Book, String>)
+|   |   |-- UserRepository.java      (extends JpaRepository<User, String>)
+|   |   |-- LoanRepository.java      (extends JpaRepository<Loan, String>)
 |   |-- validator
 |   |   |-- ValidationUtil.java
 |   |   |-- BookValidator.java
@@ -266,11 +359,258 @@ edu.eci.dosw.DOSW_Library
 |       |-- Constants.java
 |       |-- DateUtil.java
 |       |-- IdGeneratorUtil.java
+|-- persistence
+    |-- dao                 (Data Access Objects para queries complejas)
+        |-- BookDAO.java    (Queries batch, reportes sobre libros)
+        |-- UserDAO.java    (Queries batch, reportes sobre usuarios)
+        |-- LoanDAO.java    (Queries batch, reportes sobre prestamos)
 |-- security
-		|-- SecurityConfig.java
-		|-- JwtService.java
-		|-- JwtAuthenticationFilter.java
+    |-- SecurityConfig.java
+    |-- JwtService.java
+    |-- JwtAuthenticationFilter.java
 ```
+
+**Nota arquitectonica importante:**
+- ✅ `core.model` = Entidades JPA (@Entity) + Modelos de dominio (dual propósito)
+- ✅ `core.repository` = Spring Data JpaRepository (simples CRUD + custom queries)
+- ✅ `persistence.dao` = Complex queries, batch operations, reportes
+- ❌ `persistence.entity` = ELIMINADO (redundante con core.model)
+- ❌ `persistence.mapper` = ELIMINADO (no hay transformación Entity ↔ Model)
+
+La arquitectura fue simplificada eliminando duplicación: los modelos de dominio SON las entidades JPA.
+
+**Modelo Entidad-Relación Normalizado a 3FN:**
+
+![DOSW Library - Modelo Entidad Relación 3FN](images/Diagrama%20ER%203FN.png)
+
+### Entidades Principales
+
+#### 1. USER (Usuarios)
+
+**Proposito:** Almacenar información de usuarios con roles diferenciados.
+
+| Atributo | Tipo | Restricción | Descripción |
+|----------|------|------------|-------------|
+| `id` | VARCHAR(20) | PK | Identificador único (USR-001, USR-002...) |
+| `name` | VARCHAR(100) | NOT NULL | Nombre completo |
+| `email` | VARCHAR(100) | UNIQUE, NOT NULL | Email para contacto/recuperación |
+| `username` | VARCHAR(50) | UNIQUE, NOT NULL | **NUEVO**: Username para login |
+| `password` | VARCHAR(255) | NOT NULL | **NUEVO**: Hash BCrypt de contraseña |
+| `role` | ENUM | NOT NULL | **NUEVO**: BIBLIOTECARIO o USUARIO |
+| `created_at` | TIMESTAMP | DEFAULT NOW() | Fecha de registro |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Última actualización |
+
+**Roles:**
+- `BIBLIOTECARIO`: Gestiona libros y usuarios, ve todos los préstamos
+- `USUARIO`: Solicita y devuelve prestamos, ve solo sus prestamos
+
+---
+
+#### 2. BOOK (Libros)
+
+**Proposito:** Catálogo de libros e inventario de ejemplares.
+
+| Atributo | Tipo | Restricción | Descripción |
+|----------|------|------------|-------------|
+| `id` | VARCHAR(20) | PK | Identificador único (BK-001, BK-002...) |
+| `title` | VARCHAR(200) | NOT NULL | Título del libro |
+| `author` | VARCHAR(100) | NOT NULL | Autor |
+| `copies` | INT | NOT NULL, CHECK (>0) | **CRÍTICO**: Stock total (ejemplares totales) |
+| `available` | INT | NOT NULL, CHECK (≥0 ≤ copies) | **CAMBIO**: Cantidad disponible (antes era BOOLEAN) |
+| `created_at` | TIMESTAMP | DEFAULT NOW() | Cuando se agregó el libro |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Última actualización |
+
+**Cambio importante:** `available` cambió de BOOLEAN a INT
+
+- ❌ **Antes (incorrecto)**: `available = TRUE/FALSE` → solo dice "hay o no hay"
+- ✅ **Ahora (correcto)**: `available = INT` → cantidad exacta de copias disponibles
+
+**Invariante:**
+```
+copies >= available >= 0
+Si disponibles < 0 → ERROR (violación de lógica)
+Si disponibles > copies → ERROR (más disponibles que stock total)
+```
+
+---
+
+#### 3. LOAN (Préstamos)
+
+**Proposito:** Registro de préstamos de libros a usuarios.
+
+| Atributo | Tipo | Restricción | Descripción |
+|----------|------|------------|-------------|
+| `id` | VARCHAR(20) | PK | Identificador único (LOAN-001...) |
+| `user_id` | VARCHAR(20) | FK → USER, NOT NULL | Referencia al usuario que pide prestado |
+| `book_id` | VARCHAR(20) | FK → BOOK, NOT NULL | Referencia al libro prestado |
+| `loan_date` | TIMESTAMP | NOT NULL | Fecha de préstamo |
+| `due_date` | TIMESTAMP | NOT NULL | **NUEVO**: Fecha de vencimiento (loan_date + 14 días) |
+| `return_date` | TIMESTAMP | NULL | Fecha de devolución (NULL si aún no devuelto) |
+| `status` | ENUM | NOT NULL | ACTIVE o RETURNED |
+| `created_at` | TIMESTAMP | DEFAULT NOW() | Registro del préstamo |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Última modificación |
+
+**Estados del Préstamo:**
+- `ACTIVE`: Préstamo vigente, libro no devuelto
+- `RETURNED`: Libro devuelto, return_date tiene fecha
+
+**Regla crítica:** Transición de estado
+```
+ACTIVE → RETURNED (cuando se devuelve el libro)
+Si status = ACTIVE → return_date DEBE ser NULL
+Si status = RETURNED → return_date DEBE tener fecha
+```
+
+---
+
+### Relaciones (1:N)
+
+#### Relación 1: User ↔ Loan
+
+```
+User (1) ----< Loan (N)
+  ↓
+Un usuario puede tener 0 o más préstamos
+Un préstamo pertenece a exactamente 1 usuario
+```
+
+**Integridad referencial:**
+```sql
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+-- Si se elimina usuario → sus préstamos se eliminan automáticamente
+```
+
+---
+
+#### Relación 2: Book ↔ Loan
+
+```
+Book (1) ----< Loan (N)
+  ↓
+Un libro puede ser prestado 0 o más veces
+Un préstamo es de exactamente 1 libro
+```
+
+**Integridad referencial:**
+```sql
+FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+-- Si se elimina libro → sus préstamos se eliminan automáticamente
+```
+
+---
+
+### Normalización a 3FN
+
+#### Primera Forma Normal (1FN)
+✅ **CUMPLE**: Todos los atributos son atómicos
+
+- No hay grupos repetidos
+- `role` es ENUM (valor único, no lista)
+- Todos los valores son indivisibles
+
+#### Segunda Forma Normal (2FN)
+✅ **CUMPLE**: Todos los atributos no-clave dependen completamente de la PK
+
+**Ejemplo - Tabla USER:**
+```
+PK = { id }
+
+Cada atributo depende SOLO de id:
+- name → {id}
+- email → {id}
+- role → {id}
+- NO hay dependencias parciales
+```
+
+#### Tercera Forma Normal (3FN)
+✅ **CUMPLE**: Sin dependencias transitivas
+
+**Lo que evitamos:**
+```
+❌ INCORRECTO (violaría 3FN):
+Loan {
+    id, user_id, user_name, user_email,
+    book_id, book_title, book_author, ...
+}
+Problema: user_name depende transitivamente de user_id (no de id de Loan)
+
+✅ CORRECTO (cumple 3FN):
+Loan {
+    id, user_id, book_id, loan_date, due_date, status
+}
+Los datos del usuario se acceden vía JOIN con User table
+Los datos del libro se acceden vía JOIN con Book table
+```
+
+---
+
+### Resumen de Cambios vs Versión Primera
+
+| Elemento | Primera Versión | Versión Actual | Por qué |
+|----------|-----------------|----------------|---------|
+| User.username | ❌ No existía | ✅ VARCHAR(50) UNIQUE | Requerido para login |
+| User.password | ❌ No existía | ✅ VARCHAR(255) BCrypt | Autenticación segura |
+| User.role | ❌ Solo "USER" hardcodeado | ✅ ENUM(BIBLIOTECARIO, USUARIO, ADMIN) | Autorización por roles |
+| Book.available | ❌ BOOLEAN | ✅ INT | Cantidad exacta de copias |
+| Loan.due_date | ❌ No existía | ✅ TIMESTAMP | Fecha de vencimiento |
+| Loan.returnDate | ❌ LocalDate | ✅ LocalDateTime | Precisión de tiempo |
+| Timestamps | ❌ No existían | ✅ created_at, updated_at | Auditoría |
+| persistence.entity | ✅ Existían | ❌ **ELIMINADOS** | core.model YA son @Entity |
+| persistence.mapper | ✅ Existían | ❌ **ELIMINADOS** | No hay transformación Entity↔Entity |
+| LoanDTO.dueDate | ❌ No existía | ✅ LocalDateTime | Mapeo completo de Loan |
+| CreateUserDTO | ✅ (id, name, email) | ✅ (+ username, password, role) | Campos requeridos para login |
+| BookPersistenceMapper | ✅ Consolidado | ✅ Funcionalidad completa | Conversión correcta de tipos |
+
+---
+
+**Arquitectura Simplificada (Refactor Final):**
+
+**Antes (Redundante - DOS CAPAS DE MAPPERS):**
+```
+DTO ↔ (controller.mapper) ↔ Model ↔ (persistence.mapper) ↔ Entity → Repository → BD
+```
+
+**Ahora (Limpio - MAPPERS CONSOLIDADOS):**
+```
+DTO ↔ (persistence.mapper consolidado) ↔ Model(@Entity) ↔ Repository → BD
+```
+
+**Cambios realizados:**
+- ✅ BO1BookPersistenceMapper: Ahora maneja DTO ↔ Book ↔ BookEntity  
+- ✅ UserPersistenceMapper: Ahora maneja DTO ↔ User ↔ UserEntity
+- ✅ LoanPersistenceMapper: Ahora maneja DTO ↔ Loan ↔ LoanEntity  
+- ❌ **ELIMINADA** carpeta `controller/mapper` (redundante)
+
+**Beneficios:**
+- ✅ Menos leyes de LOC (3 mappers en lugar de 6)
+- ✅ Mappers en la capa correcta (persistence, no controller)
+- ✅ Menos complejidad (una sola transformación por entidad)
+- ✅ Fácil de mantener
+
+---
+
+### Validaciones en la Base de Datos
+
+```sql
+-- Integridad de INVENTARIO
+CHECK (copies > 0)                      -- Stock inicial > 0
+CHECK (available >= 0 AND available <= copies)  -- Cantidad válida
+
+-- Integridad de FECHAS
+CHECK (loan_date <= due_date)           -- loan_date ≤ due_date
+
+-- Integridad de ESTADO
+CHECK (
+  (status = 'ACTIVE' AND return_date IS NULL)
+  OR (status = 'RETURNED' AND return_date IS NOT NULL)
+)
+
+-- Unicidad
+UNIQUE (email)                          -- Email único por usuario
+UNIQUE (username)                       -- Username único por usuario
+```
+
+---
 
 ## Paquetes y Clases: Responsabilidad Detallada
 
@@ -280,11 +620,59 @@ edu.eci.dosw.DOSW_Library
 - Clase:
 	- DoswLibraryApplication: inicia toda la aplicacion.
 
-### config
+### config ✅ IMPLEMENTADO
 
-- Rol: decisiones de configuracion transversal.
-- Clases:
-	- OpenApiConfig: define metadata de API, esquema bearer JWT y seguridad global de docs.
+**Rol:** Configuración transversal de la aplicación
+
+**Clases implementadas:**
+
+#### **OpenApiConfig** (@Configuration)
+```
+Responsabilidad: Documentación OpenAPI/Swagger
+
+Configura:
+  ├─ @Bean OpenAPI para metadata global
+  │  ├─ Info: título, descripción, versión (1.0.0)
+  │  ├─ License: información de licencia
+  │  └─ Contact: información del desarrollador
+  │
+  ├─ SecurityScheme para JWT Bearer
+  │  ├─ Type: HTTP
+  │  ├─ Scheme: Bearer
+  │  ├─ bearerFormat: JWT
+  │  └─ Description: Token JWT requerido
+  │
+  └─ SecurityRequirement global
+     └─ Todas las rutas requieren JWT (excepto públicas)
+
+Problemas resueltos ✅:
+  - ❌ Redirección /swagger-ui.htm → /swagger-ui.html
+  - ✅ SwaggerRedirectController mitiga este problema
+  - ✅ OpenAPI schema expone correctamente Bearer JWT
+```
+
+#### **SecurityConfig** (@Configuration)
+```
+Responsabilidad: Configuración de Spring Security + JWT
+
+Configura:
+  ├─ @Bean PasswordEncoder (BCrypt para passwords)
+  │  └─ Hashing seguro de credenciales
+  │
+  ├─ @Bean SecurityFilterChain (@EnableMethodSecurity)
+  │  ├─ Rutas públicas: POST /api/auth/login, POST /api/users
+  │  ├─ Rutas protegidas: todo lo demás
+  │  ├─ Filtro JWT: JwtAuthenticationFilter inyectado
+  │  ├─ CORS: permite origenes específicos
+  │  └─ CSRF: deshabilitado (stateless API)
+  │
+  └─ @Bean AuthenticationManager (inyección para login)
+
+Problemas resueltos ✅:
+  - ❌ Dependencias circulares: SecurityConfig → JwtAuthenticationFilter
+  - ✅ Inyección de filtro en SecurityFilterChain (no en constructor)
+  - ✅ Filter chain acceso a beans necesarios sin ciclos
+```
 
 ### controller
 
@@ -302,13 +690,197 @@ edu.eci.dosw.DOSW_Library
 	- CreateBookDTO, UpdateBookInventoryDTO, CreateUserDTO, UpdateUserDTO, CreateLoanDTO, LoginRequest: entrada.
 	- BookDTO, UserDTO, LoanDTO, LoanSummaryDTO: salida.
 
-### controller.mapper
+### persistence.mapper ✅ CONSOLIDADO (Refactor Final 7 de abril 2026)
 
-- Rol: traduccion entre DTO y entidades.
-- Clases:
-	- BookMapper: conversiones de libro + logica de operacion de inventario en memoria.
-	- UserMapper: conversiones de usuario + merge de update parcial.
-	- LoanMapper: conversiones de prestamo full y summary.
+**Cambio Arquitectónico:** Se consolidó toda la funcionalidad de mappers en la capa `persistence`, eliminando la redundancia de `controller.mapper`.
+
+**Razón del cambio:**
+- ❌ ANTES: Dos niveles de mappers (controller/mapper y persistence/mapper) duplicaban lógica
+- ✅ AHORA: Un único mapper por entidad que maneja 4 capas de transformación
+
+**Responsabilidad:** Traducción en ambas direcciones entre DTO ↔ Model ↔ Entity JPA
+
+**Patrón de 4 capas aplicado a cada mapper:**
+
+1. **PERSISTENCE LAYER** (toDomain/toEntity Entity ↔ Model)
+   - Convierte entidades JPA (BookEntity, UserEntity, LoanEntity) a modelos de dominio
+   - Maneja mappings de enums (LoanStatus, UserRole)
+   - Incluye timestamps (createdAt, updatedAt)
+
+2. **API LAYER** (toDTO/toDTOList Model → DTO)
+   - Convierte modelos de dominio a DTOs para respuestas HTTP
+   - Incluye logging detallado (DEBUG, TRACE, WARN)
+   - Manejo de nulls seguro
+
+3. **REQUEST LAYER** (toEntity CreateDTO → Model)
+   - Convierte DTOs de entrada a modelos de dominio
+   - Aplica lógica de inicialización (ej: available = copies en Book)
+   - Validación de campos opcionales (roles por defecto, etc)
+
+4. **UPDATE OPERATIONS** (updateInventory, updateEntity)
+   - Métodos especiales para actualizaciones parciales
+   - Conjectura de cambios e historiales
+
+**Clases implementadas:**
+
+#### **BookPersistenceMapper** (~230 líneas)
+```
+Métodos:
+  ┌─ PERSISTENCE (Entity ↔ Model)
+  ├─ toDomain(BookEntity): Book
+  └─ toEntity(Book): BookEntity
+  
+  ┌─ API RESPONSE (Model → DTO)
+  ├─ toDTO(Book): BookDTO
+  └─ toDTOList(List<Book>): List<BookDTO>
+  
+  ┌─ REQUEST (DTO → Model)
+  └─ toEntity(CreateBookDTO): Book
+  
+  ┌─ INVENTORY OPERATIONS
+  └─ updateInventory(Book, UpdateBookInventoryDTO): void
+       ├─ SET: establece cantidad absoluta
+       ├─ ADD: incrementa
+       └─ REMOVE: decrementa (con validación negativa)
+```
+
+**Características especiales:**
+- Conversión de tipo: `available` (Integer en model) → `available > 0` (booleano en DTO)
+- Validación: impide decrementos por debajo de 0
+- Logging con niveles (DEBUG para conversiones, INFO para operaciones, WARN para anomalías)
+
+#### **UserPersistenceMapper** (~170 líneas)
+```
+Métodos:
+  ┌─ PERSISTENCE (Entity ↔ Model)
+  ├─ toDomain(UserEntity): User
+  │  └─ Convierte UserRole.ADMIN → "ADMIN" (String en model)
+  └─ toEntity(User): UserEntity
+     └─ Convierte "ADMIN" → UserRole.ADMIN (enum)
+  
+  ┌─ API RESPONSE (Model → DTO)
+  ├─ toDTO(User): UserDTO
+  │  └─ NO expone username, password, role (seguridad)
+  └─ toDTOList(List<User>): List<UserDTO>
+  
+  ┌─ REQUEST (DTO → Model)
+  └─ toEntity(CreateUserDTO): User
+     └─ Role por defecto: "USUARIO" si no se proporciona
+  
+  ┌─ PARTIAL UPDATES
+  └─ updateEntity(User, UpdateUserDTO): void
+     └─ Solo actualiza name y email (credenciales protegidas)
+```
+
+**Características especiales:**
+- Seguridad: DTOs de respuesta nunca exponen credenciales
+- Flexibilidad: CreateDTO incluye todas las credenciales, pero toDTO() las oculta
+- Enum handling: manejo bidirecicional de UserRole
+
+#### **LoanPersistenceMapper** (~190 líneas)
+```
+Métodos:
+  ┌─ PERSISTENCE (Entity ↔ Model)
+  ├─ toDomain(LoanEntity): Loan
+  │  └─ Convierte entidades anidadas (book, user)
+  │  └─ Convierte LoanStatus enum
+  └─ toEntity(Loan): LoanEntity
+     └─ Mapea relaciones @ManyToOne (user, book)
+  
+  ┌─ API RESPONSE COMPLETO (Model → DTO)
+  ├─ toDTO(Loan): LoanDTO
+  │  ├─ Incluye BookDTO completo (con título, autor, etc)
+  │  ├─ Incluye UserDTO completo (sin credenciales)
+  │  └─ Manejo de LazyInitializationException para relaciones
+  └─ toDTOList(List<Loan>): List<LoanDTO>
+  
+  ┌─ API RESPONSE RESUMIDO (Model → SummaryDTO)
+  ├─ toSummaryDTO(Loan): LoanSummaryDTO
+  │  ├─ Solo IDs y títulos (sin objetos anidados)
+  │  └─ Conversión LocalDateTime → LocalDate ✅ CORREGIDO
+  └─ toSummaryDTOList(List<Loan>): List<LoanSummaryDTO>
+```
+
+**Características especiales:**
+- Relaciones anidadas: depende de BookPersistenceMapper y UserPersistenceMapper
+- Dos versiones de DTOs: completo vs resumido
+- Error handling: LazyInitializationException → RuntimeException descriptiva
+- **CORRECCIÓN APLICADA (7 abril):** `loan.getLoanDate().toLocalDate()` en SummaryDTO
+
+---
+
+### controller ✅ ACTUALIZADO
+
+**Cambios realizados:**
+- Todos los controllers actualizados para usar mappers consolidados de `persistence.mapper`
+- ❌ ELIMINADA carpeta controller/mapper (redundante)
+
+**Actualización de imports:**
+
+```java
+// ❌ ANTES
+import edu.eci.dosw.DOSW_Library.controller.mapper.BookMapper;
+private final BookMapper bookMapper;
+public BookController(BookService bookService, BookMapper bookMapper) { ... }
+
+// ✅ AHORA
+import edu.eci.dosw.DOSW_Library.persistence.mapper.BookPersistenceMapper;
+private final BookPersistenceMapper bookMapper;
+public BookController(BookService bookService, BookPersistenceMapper bookMapper) { ... }
+```
+
+**Clases actualizadas:**
+- BookController: `BookMapper` → `BookPersistenceMapper` ✅
+- UserController: `UserMapper` → `UserPersistenceMapper` ✅
+- LoanController: `LoanMapper` → `LoanPersistenceMapper` ✅
+
+---
+
+### core.validator ✅ CORREGIDO (7 de abril)
+
+**Cambios realizados:** Se corrigieron inconsistencias de tipos en validadores
+
+#### **BookValidator**
+**CORRECCIONES:**
+- ❌ `book.isAvailable()` no existe (método no encontrado)
+- ✅ Cambiado a `book.getAvailable()` (retorna Integer, no boolean)
+- ❌ Lógica comparaba booleano con Integer
+- ✅ Corregida: `available` debe ser == copies (cuando available > 0, hay copias)
+
+```java
+// ❌ ANTES
+boolean isAvailable = book.isAvailable();  // No existe este método
+if (shouldBeAvailable != isAvailable) { ... }
+
+// ✅ DESPUÉS
+int isAvailable = book.getAvailable();  // Integer
+if (shouldBeAvailable != isAvailable) { ... }
+```
+
+#### **LoanValidator**
+**CORRECCIONES:**
+- ❌ `loan.getLoanDate()` retorna `LocalDateTime` pero se trataba como `LocalDate`
+- ✅ Métodos `isLoanOverdue()` y `getDaysRemaining()` actualizados a `LocalDateTime`
+
+```java
+// ❌ ANTES
+LocalDate dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);  // Error de tipo
+boolean overdue = LocalDate.now().isAfter(dueDate);
+
+// ✅ DESPUÉS
+LocalDateTime dueDate = loan.getLoanDate().plusDays(MAX_LOAN_DAYS);  // Correcto
+boolean overdue = LocalDateTime.now().isAfter(dueDate);
+```
+
+**Clases validadores:**
+- ✅ ValidationUtil: SIN CAMBIOS (ya correcto)
+- ✅ UserValidator: SIN CAMBIOS (ya correcto)
+- ✅ BookValidator: CORREGIDO (tipos y lógica)
+- ✅ LoanValidator: CORREGIDO (LocalDate → LocalDateTime)
+
+---
+
+### persistence.mapper ✅ CONSOLIDADO
 
 ### core.model
 
@@ -344,29 +916,759 @@ edu.eci.dosw.DOSW_Library
 	- UserValidator: formato de usuario y correo.
 	- LoanValidator: consistencia de fechas, estados y relaciones.
 
-### core.exception
+### core.exception ✅ IMPLEMENTADO
 
-- Rol: estandarizar errores de negocio y su traduccion HTTP.
-- Clases:
-	- ErrorResponse: contrato JSON de error.
-	- GlobalExceptionHandler: traduccion central de excepciones.
-	- BookNotAvailableException, LoanLimitExceededException, UserNotFoundException, ResourceNotFoundException.
+**Rol:** Manejo centralizado de errores y excepciones personalizadas
 
-### core.util
+**Clases implementadas:**
 
-- Rol: utilidades transversales y constantes.
-- Clases:
-	- Constants: limites y formatos.
-	- DateUtil: calculos de vencimiento/atraso.
-	- IdGeneratorUtil: IDs con prefijos uniformes.
+#### **ResourceNotFoundException**
+- Extiende `RuntimeException`
+- Lanzada cuando: No se encuentra recurso (Book, User, Loan)
+- Uso típico: `getBookById()`, `getUserById()`, `getLoanById()`
+- Código HTTP: 404 Not Found
 
-### security
+```java
+throw new ResourceNotFoundException("Book not found with id: " + id);
+```
 
-- Rol: autenticacion y autorizacion.
-- Clases:
-	- SecurityConfig: reglas de acceso y filtro JWT.
-	- JwtService: generar/validar tokens.
-	- JwtAuthenticationFilter: autenticar request por header Authorization.
+#### **ConflictException**
+- Extiende `RuntimeException`
+- Lanzada cuando: Conflicto de datos (DNI duplicado, ISBN duplicado, operación inválida)
+- Uso típico: Validación en CreateDTO, actualización de inventario inválida
+- Código HTTP: 409 Conflict
+
+```java
+throw new ConflictException("User with DNI " + dni + " already exists");
+```
+
+#### **ValidationException**
+- Extiende `RuntimeException`
+- Lanzada cuando: Validación fallida (campo inválido, regla de negocio violada)
+- Uso típico: Validadores en `core.validator`
+- Código HTTP: 400 Bad Request
+
+```java
+throw new ValidationException("Book title cannot be empty");
+```
+
+#### **GlobalExceptionHandler** (@RestControllerAdvice)
+- Manejo centralizado de excepciones
+- Mapeo automático →  ResponseEntity con código HTTP correcto
+- Logging de errores
+- Respuesta estándar: `{ "error": "...", "timestamp": "...", "status": 404 }`
+
+---
+
+### core.model 📊 MODELOS DE DOMINIO
+
+**Rol:** Representación de entidades de negocio (SON entidades JPA)
+
+**Clases implementadas:**
+
+#### **Book** (@Entity)
+```
+Atributos:
+  ├─ id: Long (única identificación)
+  ├─ title: String (título libro)
+  ├─ author: String (autor)
+  ├─ isbn: String (ISBN único)
+  ├─ description: String (descripción)
+  ├─ publicationDate: LocalDate (fecha publicación)
+  ├─ copies: Integer (total copias biblioteca)
+  ├─ available: Integer (copias disponibles > 0)
+  ├─ createdAt: LocalDateTime (timestamp creación)
+  └─ updatedAt: LocalDateTime (última actualización)
+
+Métodos:
+  ├─ Getters/Setters
+  ├─ equals()/hashCode() - Por ID único
+  └─ toString() - Representación legible
+```
+
+**Validaciones de dominio:**
+- ISBN: formato único en base de datos
+- title: obligatorio, no vacío
+- author: obligatorio, no vacío
+- copies: debe ser > 0
+- available: siempre ≤ copies
+
+#### **User** (@Entity)
+```
+Atributos:
+  ├─ id: Long (única identificación)
+  ├─ name: String (nombre usuario)
+  ├─ email: String (email único)
+  ├─ username: String (username único para login)
+  ├─ password: String (hash bcrypt)
+  ├─ dni: String (DNI único)
+  ├─ role: String ("ADMIN" o "USUARIO")
+  ├─ createdAt: LocalDateTime (timestamp creación)
+  └─ updatedAt: LocalDateTime (última actualización)
+
+Métodos:
+  ├─ Getters/Setters
+  ├─ equals()/hashCode() - Por ID único
+  ├─ hasRole(String): boolean
+  └─ toString() - Representación legible (sin password)
+```
+
+**Validaciones de dominio:**
+- email: formato válido, único
+- username: único, 3-20 caracteres
+- password: hash bcrypt (no plaintext)
+- dni: único
+- role: "ADMIN" ó "USUARIO"
+
+#### **Loan** (@Entity)
+```
+Atributos:
+  ├─ id: Long (única identificación)
+  ├─ user: User (usuario que toma préstamo)
+  ├─ book: Book (libro prestado)
+  ├─ loanDate: LocalDateTime (fecha inicio préstamo)
+  ├─ dueDate: LocalDateTime (fecha vencimiento)
+  ├─ returnDate: LocalDateTime (fecha devolución real, null si activo)
+  ├─ status: LoanStatus (ACTIVE / RETURNED / OVERDUE)
+  ├─ fine: BigDecimal (multa si aplica)
+  ├─ createdAt: LocalDateTime (timestamp creación)
+  └─ updatedAt: LocalDateTime (última actualización)
+
+Métodos:
+  ├─ Getters/Setters
+  ├─ equals()/hashCode() - Por ID único
+  ├─ isOverdue(): boolean
+  ├─ getDaysRemaining(): long
+  ├─ markAsReturned(LocalDateTime): void
+  ├─ calculateFine(): BigDecimal
+  └─ toString() - Representación legible
+```
+
+**Validaciones de dominio:**
+- loanDate: no puede ser futura
+- returnDate: solo si status = RETURNED
+- status: dependiente de fechas (OVERDUE si dueDate < now)
+- fine: solo si OVERDUE/RETURNED con atraso
+
+---
+
+### core.repository ✅ IMPLEMENTADO
+
+**Rol:** Acceso a datos persistentes (JPA/Hibernate)
+
+**Interfaces implementadas:**
+
+#### **BookRepository** (extends JpaRepository<Book, Long>)
+```
+Métodos custom:
+  ├─ findByIsbn(String): Optional<Book> - Por ISBN único
+  ├─ findByTitleIgnoreCase(String): List<Book> - Búsqueda por título
+  ├─ findByAuthorIgnoreCase(String): List<Book> - Búsqueda por autor
+  ├─ findAvailableBooks(): List<Book> - Solo con copias > 0
+  └─ updateInventory(id, operation, quantity): void - Actualizar disponibilidad
+```
+
+#### **UserRepository** (extends JpaRepository<User, Long>)
+```
+Métodos custom:
+  ├─ findByEmail(String): Optional<User> - Por email único
+  ├─ findByUsername(String): Optional<User> - Por username único
+  ├─ findByDni(String): Optional<User> - Por DNI único
+  ├─ findByRole(String): List<User> - Por rol
+  └─ existsByEmailOrUsernameOrDni(email, username, dni): boolean - Validación duplicados
+```
+
+#### **LoanRepository** (extends JpaRepository<Loan, Long>)
+```
+Métodos custom:
+  ├─ findByUserId(Long): List<Loan> - Préstamos por usuario
+  ├─ findByBookId(Long): List<Loan> - Préstamos de libro
+  ├─ findActiveByUserId(userId): List<Loan> - Status ACTIVE
+  ├─ findOverdueLoans(): List<Loan> - Vencidos
+  └─ findByStatus(LoanStatus): List<Loan> - Por estado
+```
+
+---
+
+### core.service ✅ IMPLEMENTADO
+
+**Rol:** Lógica de negocio principal
+
+**Clases implementadas:**
+
+#### **BookService** (~280 líneas)
+```
+Métodos públicos:
+  ├─ getAllBooks(): List<Book>
+  ├─ getBookById(Long): Book
+  ├─ createBook(CreateBookDTO): Book
+  ├─ updateBook(Long, UpdateBookDTO): Book
+  ├─ deleteBook(Long): void
+  ├─ searchBooks(String): List<Book>
+  └─ updateInventory(Long, UpdateBookInventoryDTO): void
+     ├─ SET: fija cantidad exacta
+     ├─ ADD: incrementa
+     └─ REMOVE: decrementa
+```
+
+**Lógica de negocio:**
+- ✅ ISBN único validado
+- ✅ available nunca > copies
+- ✅ No se permite REMOVE que deje cantidad negativa
+- ✅ Logging detallado (DEBUG en búsquedas, INFO en cambios)
+
+#### **UserService** (~240 líneas)
+```
+Métodos públicos:
+  ├─ getAllUsers(): List<User>
+  ├─ getUserById(Long): User
+  ├─ getUserByEmail(String): User
+  ├─ getUserByUsername(String): User
+  ├─ getUserByDni(String): User
+  ├─ createUser(CreateUserDTO): User
+  ├─ updateUser(Long, UpdateUserDTO): User
+  ├─ deleteUser(Long): void
+  └─ findByRole(String): List<User>
+```
+
+**Lógica de negocio:**
+- ✅ Email, username, DNI únicos
+- ✅ Password hash con bcrypt (nunca en plaintext)
+- ✅ Rol por defecto "USUARIO" si no se especifica
+- ✅ DTOs de respuesta nunca exponen credenciales
+
+#### **LoanService** (~320 líneas)
+```
+Métodos públicos:
+  ├─ getAllLoans(): List<Loan>
+  ├─ getLoanById(Long): Loan
+  ├─ getLoansByUserId(Long): List<Loan>
+  ├─ getLoansByBookId(Long): List<Loan>
+  ├─ getActiveLoans(userId): List<Loan>
+  ├─ getOverdueLoans(): List<Loan>
+  ├─ createLoan(CreateLoanDTO): Loan
+  │  └─ Validar: usuario existe, libro existe, copias disponibles
+  ├─ returnLoan(Long, LocalDateTime): Loan
+  │  └─ Calcular multa si está vencido
+  └─ markAsOverdue(Long): Loan
+     └─ Status = OVERDUE, calcular fine
+```
+
+**Lógica de negocio:**
+- ✅ Validación: usuario y libro existen
+- ✅ Validación: libro tiene copias disponibles
+- ✅ Auto-actualización de status (OVERDUE si vencido)
+- ✅ Cálculo de multas: $1 por día vencido
+- ✅ Decremento de available al crear loan
+- ✅ Incremento de available al devolver
+
+---
+
+### core.util ✅ IMPLEMENTADO
+
+**Rol:** Utilidades transversales
+
+**Clases implementadas:**
+
+#### **DateUtil**
+```
+Métodos:
+  ├─ now(): LocalDateTime - Timestamp actual
+  ├─ isExpired(LocalDateTime): boolean - Comparación con now
+  ├─ addDays(LocalDateTime, long): LocalDateTime
+  ├─ getDaysBetween(LocalDateTime, LocalDateTime): long
+  └─ toLocalDate(LocalDateTime): LocalDate
+```
+
+#### **ValidationUtil** (~100 líneas)
+```
+Métodos validación:
+  ├─ isValidEmail(String): boolean - Regex
+  ├─ isValidISBN(String): boolean - Formato numérico
+  ├─ isValidDNI(String): boolean - No vacío
+  ├─ isNotEmpty(String): boolean
+  ├─ isPositive(Integer): boolean
+  └─ throwIfInvalid(condition, message): void
+```
+
+### core.validator ✅ CORREGIDO (7 de abril)
+
+**Rol:** Validaciones de dominio complejas
+
+**Clases implementadas:**
+
+#### **BookValidator** (~120 líneas) ✅ CORREGIDO
+```
+Métodos:
+  ├─ validateCreateDto(CreateBookDTO): void
+  │  └─ title, author, isbn, copies > 0 obligatorios
+  ├─ validateUpdateDto(UpdateBookDTO, existingBook): void
+  │  └─ Solo validar campos que se actualizan
+  ├─ validateBook(Book): void
+  │  └─ ISBN único, available ≤ copies
+  └─ validateInventoryOperation(operation, quantity, available): void
+     └─ REMOVE no deja negativo
+```
+
+**Correcciones aplicadas (7 abril):**
+- `book.getAvailable()` retorna Integer (no boolean)
+- Validación: `available > 0` indica que hay copias
+
+#### **UserValidator** (~100 líneas)
+```
+Métodos:
+  ├─ validateCreateDto(CreateUserDTO): void
+  ├─ validateUpdateDto(UpdateUserDTO): void
+  ├─ validateUser(User): void
+  └─ validateRoleValue(String): boolean
+```
+
+#### **LoanValidator** (~130 líneas) ✅ CORREGIDO
+```
+Métodos:
+  ├─ validateCreateDto(CreateLoanDTO): void
+  ├─ validateLoan(Loan): void
+  ├─ isLoanOverdue(): boolean - Compara LocalDateTime
+  ├─ getDaysRemaining(): long - Cálculo desde dueDate
+  └─ validateReturnOperation(Loan, returnDate): void
+```
+
+**Correcciones aplicadas (7 abril):**
+- `loanDate` es LocalDateTime (no LocalDate)
+- `dueDate` es LocalDateTime calculado desde loanDate
+
+---
+
+### persistence.entity ✅ CONSOLIDADO EN core.model
+
+**Cambio arquitectónico:** Las clases Entity (@Entity) fueron consolidadas en `core.model`. No existe carpeta `persistence.entity` redundante.
+
+**Razón:**
+- ❌ ANTES: Duplicación Book (domain model) y BookEntity (JPA entity)
+- ✅ AHORA: Una sola clase Book (@Entity) que es dominio + persistencia
+
+**Clases en core.model (SON @Entity):**
+
+#### **Book** (@Entity)
+```java
+@Entity
+@Table(name = "books", uniqueConstraints = { @UniqueConstraint(columnNames = "isbn") })
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, length = 200)
+    private String title;
+    
+    @Column(nullable = false)
+    private String author;
+    
+    @Column(nullable = false, unique = true, length = 20)
+    private String isbn;
+    
+    @Column(length = 500)
+    private String description;
+    
+    @Column(name = "publication_date")
+    private LocalDate publicationDate;
+    
+    @Column(nullable = false)
+    private Integer copies;  // Total de copias (>= 0)
+    
+    @Column(nullable = false)
+    private Integer available;  // Copias disponibles (>= 0, <= copies)
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Loan> loans = new ArrayList<>();
+    
+    // Getters, Setters, equals(), hashCode()
+}
+```
+
+**Restricciones:**
+- isbn: UNIQUE en BD
+- copies, available: INTEGER NOT NULL
+- title, author: VARCHAR NOT NULL
+- available ≤ copies (validación en servicio)
+
+#### **User** (@Entity)
+```java
+@Entity
+@Table(name = "users", uniqueConstraints = {
+    @UniqueConstraint(columnNames = "email"),
+    @UniqueConstraint(columnNames = "username"),
+    @UniqueConstraint(columnNames = "dni")
+})
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, length = 100)
+    private String name;
+    
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;
+    
+    @Column(nullable = false, unique = true, length = 50)
+    private String username;
+    
+    @Column(nullable = false)
+    private String password;  // BCrypt hash
+    
+    @Column(nullable = false, unique = true, length = 15)
+    private String dni;
+    
+    @Column(nullable = false, length = 20)
+    private String role;  // "ADMIN" o "USUARIO"
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Loan> loans = new ArrayList<>();
+    
+    // Getters, Setters, equals(), hashCode()
+}
+```
+
+**Restricciones:**
+- email, username, dni: UNIQUE en BD
+- password: VARCHAR NOT NULL (siempre hash BCrypt, nunca plaintext)
+- role: VARCHAR(20) NOT NULL, CHECK role IN ('ADMIN', 'USUARIO')
+
+#### **Loan** (@Entity)
+```java
+@Entity
+@Table(name = "loans")
+public class Loan {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "book_id", nullable = false)
+    private Book book;
+    
+    @Column(name = "loan_date", nullable = false)
+    private LocalDateTime loanDate;
+    
+    @Column(name = "due_date", nullable = false)
+    private LocalDateTime dueDate;
+    
+    @Column(name = "return_date", nullable = true)
+    private LocalDateTime returnDate;  // NULL si aún no devuelto
+    
+    @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private LoanStatus status;  // ACTIVE, RETURNED, OVERDUE
+    
+    @Column(nullable = false)
+    private BigDecimal fine = BigDecimal.ZERO;  // Multa si aplica
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    // Getters, Setters, equals(), hashCode()
+}
+
+public enum LoanStatus {
+    ACTIVE,      // Préstamo vigente
+    RETURNED,    // Devuelto a tiempo
+    OVERDUE      // Vencido, no devuelto
+}
+```
+
+**Restricciones:**
+- user_id, book_id: FOREIGN KEY
+- loanDate: TIMESTAMP NOT NULL, debe ser ≤ ahora
+- returnDate: TIMESTAMP NULL (solo si RETURNED/OVERDUE)
+- status: VARCHAR(20) CHECK status IN ('ACTIVE', 'RETURNED', 'OVERDUE')
+
+---
+
+### persistence.repository ✅ IMPLEMENTADO
+
+**Rol:** Interfaz JpaRepository con queries custom
+
+**Responsabilidad:**
+- CRUD automatizado (save, findById, findAll, delete)
+- Query methods automáticas (findBy*, findByIdIn, etc)
+- @Query para JPQL/SQL personalizadas
+- Paginación y ordenamiento
+
+#### **BookRepository** (extends JpaRepository<Book, Long>)
+```java
+@Repository
+public interface BookRepository extends JpaRepository<Book, Long> {
+    
+    // Query methods automáticas
+    Optional<Book> findByIsbn(String isbn);
+    List<Book> findByTitleIgnoreCase(String title);
+    List<Book> findByAuthorIgnoreCase(String author);
+    
+    // Custom query: libros con disponibilidad
+    @Query("SELECT b FROM Book b WHERE b.available > 0 ORDER BY b.available DESC")
+    List<Book> findAvailableBooks();
+    
+    // Búsqueda combinada
+    @Query("SELECT b FROM Book b WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "OR LOWER(b.author) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Book> searchBooks(String keyword);
+    
+    // Paginación
+    Page<Book> findByTitleContainingIgnoreCase(String title, Pageable pageable);
+}
+```
+
+#### **UserRepository** (extends JpaRepository<User, Long>)
+```java
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    
+    Optional<User> findByEmail(String email);
+    Optional<User> findByUsername(String username);
+    Optional<User> findByDni(String dni);
+    List<User> findByRole(String role);
+    
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END " +
+           "FROM User u WHERE u.email = :email OR u.username = :username OR u.dni = :dni")
+    boolean existsByEmailOrUsernameOrDni(String email, String username, String dni);
+}
+```
+
+#### **LoanRepository** (extends JpaRepository<Loan, Long>)
+```java
+@Repository
+public interface LoanRepository extends JpaRepository<Loan, Long> {
+    
+    List<Loan> findByUserId(Long userId);
+    List<Loan> findByBookId(Long bookId);
+    
+    @Query("SELECT l FROM Loan l WHERE l.user.id = :userId AND l.status = 'ACTIVE'")
+    List<Loan> findActiveLoansByUserId(Long userId);
+    
+    @Query("SELECT l FROM Loan l WHERE l.status = 'OVERDUE'")
+    List<Loan> findOverdueLoans();
+    
+    List<Loan> findByStatus(LoanStatus status);
+    
+    @Query("SELECT COUNT(l) FROM Loan l WHERE l.user.id = :userId AND l.status = 'ACTIVE'")
+    long countActiveLoansForUser(Long userId);
+}
+```
+
+**Todas las operaciones usan JpaRepository + query methods automáticas. No hay DAO separada.**
+
+### Flujo de datos: persistence layer
+
+**Lectura de datos (HTTP GET) ✅ SIMPLIFICADO:**
+```
+[Client HTTP]
+  ↓ GET /api/books/1
+[BookController.getBookById(1)]
+  ↓
+[BookService.getBookById(1)]
+  ↓
+[BookRepository.findById(1)]  ← JpaRepository query method
+  ↓
+[H2 Database SELECT * FROM books WHERE id=1]
+  ↓
+[Book @Entity (dominio + JPA)]  ← core.model.Book = Entity + Model
+  ↓
+[BookPersistenceMapper.toDTO(book)]  ← Convierte a BookDTO
+  ↓
+[BookDTO JSON]
+  ↓ HTTP 200 OK
+[Client HTTP]
+```
+
+**Escritura de datos (HTTP POST) ✅ SIMPLIFICADO:**
+```
+[Client HTTP]
+  ↓ POST /api/books (CreateBookDTO JSON)
+[BookController.createBook(@Valid CreateBookDTO)]
+  ↓ @Valid dispara validaciones Jakarta
+[BookPersistenceMapper.toEntity(createDTO)]  ← DTO → Book model
+  ↓
+[Book @Entity validado]
+  ↓
+[BookService.createBook(book)]  ← Aplica reglas de negocio
+  ├─ Verificar ISBN único ✅
+  ├─ Validar copies > 0 ✅
+  ├─ Guardar timestamps ✅
+  └─ SET id = null (auto-generado)
+  ↓
+[BookRepository.save(book)]  ← @Entity directo, sin conversión Entity
+  ↓
+[H2 Database INSERT INTO books (...) VALUES (...)]
+  ↓ COMMIT transacción
+[Book confirmado desde BD]
+  ↓
+[BookPersistenceMapper.toDTO(book)]  ← Convierte a BookDTO
+  ↓
+[BookDTO JSON response]
+  ↓ HTTP 201 Created
+[Client HTTP]
+```
+
+**Ventaja de arquitectura consolidada:**
+- ❌ ANTES: DTOCreateBookDTO → Book model → BookEntity → BD (3 clases)
+- ✅ AHORA: CreateBookDTO → Book @Entity (@Entity + model en uno) → BD (2 clases)
+- **NO hay conversión redundante entity ↔ model**
+
+### Configuracion JPA/Hibernate
+
+**En application.properties:**
+```properties
+# H2 database (en memoria)
+spring.datasource.url=jdbc:h2:mem:dosw_db
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# JPA/Hibernate
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=create-drop  # En desarrollo: auto-genera schema
+spring.jpa.show-sql=true  # Logs de SQL (DEBUG)
+spring.jpa.properties.hibernate.format_sql=true  # SQL formateado
+
+# H2 Console (acceso web a la BD)
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+```
+
+**Acceso a la consola H2:**
+- URL: `http://localhost:8080/h2-console`
+- JDBC URL: `jdbc:h2:mem:dosw_db`
+- Usuario: `sa`
+- Contraseña: (vacía)
+
+### Ciclo de vida de una Entity
+
+```
+1. TRANSIENT (nuevo objeto, sin @Id desde BD):
+   BookEntity book = new BookEntity();  // En memoria, no vinculada
+
+2. PERSISTENT (vinculada a sesion JPA, cambios trackeados):
+   repository.save(book);
+   // JPA ahora monitorea cambios a book
+
+3. DETACHED (objeto fue guardado pero sesion cerro):
+   // Si cierras EntityManager y mantienes referencia a book
+   // Los cambios a book YA NO se sincronizan con BD
+
+4. REMOVED (marcada para eliminacion):
+   repository.delete(book);
+   // En el flush, DELETE se ejecuta
+```
+
+### security ✅ IMPLEMENTADO
+
+**Rol:** Autenticación y autorización basada en JWT
+
+**Clases implementadas:**
+
+#### **JwtService** (@Component)
+```
+Responsabilidad: Generación y validación de tokens JWT
+
+Métodos:
+  ├─ generateToken(username: String): String
+  │  ├─ Crea JWT con claims (username, issuedAt, expiration)
+  │  ├─ Firma con HMAC-SHA256 (secret key)
+  │  └─ Expiration: 24 horas por defecto
+  │
+  ├─ extractUsername(token: String): String
+  │  └─ Extrae claim "sub" del token
+  │
+  ├─ validateToken(token: String): boolean
+  │  ├─ Verifica firma (secret key)
+  │  ├─ Verifica no expirado (exp < now)
+  │  └─ Maneja ParseException si token inválido
+  │
+  └─ isTokenExpired(token: String): boolean
+     └─ Compara exp claim con LocalDateTime.now()
+
+Seguridad:
+  - ✅ Secret key almacenada en properties (no hardcoded)
+  - ✅ Algoritmo: HMAC-SHA256 (HS256)
+  - ✅ Claims: username, issuedAt, expiration
+```
+
+#### **JwtAuthenticationFilter** (extends OncePerRequestFilter)
+```
+Responsabilidad: Interceptar requests e inyectar autenticación
+
+Método de ejecución:
+  ├─ doFilterInternal() por cada request
+  │  ├─ Lee header "Authorization: Bearer <token>"
+  │  ├─ Extrae token (substring después de "Bearer ")
+  │  ├─ JwtService.validateToken(token)
+  │  ├─ Si válido:
+  │  │  ├─ JwtService.extractUsername(token)
+  │  │  ├─ UserRepository.findByUsername(username)
+  │  │  ├─ Crea Authentication (UsernamePasswordAuthenticationToken)
+  │  │  └─ SecurityContext.setAuthentication()
+  │  │
+  │  └─ Si inválido o no existe token:
+  │     └─ SecurityContext queda vacío
+  │
+  └─ filterChain.doFilter() → siguiente filtro
+
+Ciclo de vida:
+  - ✅ Se ejecuta ANTES de @RestController
+  - ✅ Modifica SecurityContext para autorización posterior
+  - ✅ No bloquea request (FilterChain decide)
+```
+
+**Flujo de autenticación JWT:**
+
+```
+1. Cliente en login (POST /api/auth/login)
+   └─ Envía username + password (plaintext)
+
+2. AuthController.login() verifica credenciales
+   ├─ UserRepository.findByUsername(username)
+   ├─ PasswordEncoder.matches(password, hashedPassword)
+   └─ Si OK → JwtService.generateToken(username)
+
+3. Cliente recibe token JWT
+   └─ Guarda en localStorage o memory
+
+4. Cliente en requests públicos
+   └─ POkus sin bearer token (permitido)
+
+5. Cliente en requests protegidos
+   ├─ Envía Authorization: Bearer <token>
+   ├─ JwtAuthenticationFilter intercepta
+   ├─ Valida token
+   ├─ SecurityContext tiene Usuario autenticado
+   └─ @PreAuthorize/@RolesAllowed lo permiten/bloquean
+
+Problemas resueltos ✅:
+  - ❌ Filtro inyectado en constructor SecurityConfig → ciclo circular
+  - ✅ Filtro inyectado en SecurityFilterChain bean
+  - ❌ Validación manual de roles en controllers
+  - ✅ @PreAuthorize("hasRole('ADMIN')") centralizado
+```
 
 ## Configuracion y Ejecucion
 
@@ -455,49 +1757,84 @@ Nota importante: existe DTO de login (LoginRequest) y configuracion de seguridad
 
 ## Flujos Funcionales Clave
 
-### Flujo 1: registrar usuario
+### Flujo 1: registrar usuario ✅
 
-1. Cliente envia POST /api/users con CreateUserDTO.
-2. UserController valida con @Valid.
-3. UserMapper convierte DTO -> User.
-4. UserService.registerUser valida duplicados de ID y email.
-5. UserMapper convierte User -> UserDTO.
-6. Respuesta 201 CREATED.
+1. Cliente envia POST /api/users con CreateUserDTO (JSON).
+2. UserController.createUser(@Valid CreateUserDTO) valida con Jakarta.
+3. UserPersistenceMapper.toEntity(createDTO) → User @Entity.
+4. UserService.createUser(user) valida:
+   - Email único ✅
+   - Username único ✅
+   - DNI único ✅
+   - Password hasheado con BCrypt ✅
+   - Rol por defecto "USUARIO" si no se especifica ✅
+5. UserRepository.save(user) → INSERT en H2.
+6. UserPersistenceMapper.toDTO(user) → UserDTO (sin credenciales).
+7. HTTP 201 CREATED + UserDTO JSON.
 
-### Flujo 2: crear libro
+### Flujo 2: crear libro ✅
 
-1. Cliente envia POST /api/books con CreateBookDTO.
-2. BookMapper crea entidad Book.
-3. BookService.addBook valida duplicados y setea copias/disponibilidad.
-4. Se retorna BookDTO.
+1. Cliente envia POST /api/books con CreateBookDTO (JSON).
+2. BookController.createBook(@Valid CreateBookDTO) valida con Jakarta.
+3. BookPersistenceMapper.toEntity(createDTO) → Book @Entity.
+4. BookService.createBook(book) valida:
+   - ISBN único ✅
+   - copies > 0 ✅
+   - Sin duplicados en BD ✅
+5. BookRepository.save(book) → INSERT en H2.
+6. BookPersistenceMapper.toDTO(book) → BookDTO.
+7. HTTP 201 CREATED + BookDTO JSON.
 
-### Flujo 3: crear prestamo
+### Flujo 3: crear préstamo ✅
 
-1. LoanController recibe CreateLoanDTO.
-2. LoanService.createLoan ejecuta validaciones secuenciales:
-	 - usuario existe
-	 - libro existe
-	 - limite de prestamos activos
-	 - no prestamo duplicado activo (mismo usuario y libro)
-	 - disponibilidad del libro
-3. Se crea Loan con estado ACTIVE.
-4. BookService.updateAvailability descuenta 1 copia.
-5. Se retorna LoanDTO.
+1. Cliente envia POST /api/loans con CreateLoanDTO (user_id, book_id).
+2. LoanController.createLoan(@Valid CreateLoanDTO) valida con Jakarta.
+3. LoanPersistenceMapper.toEntity(createDTO) → Loan @Entity.
+4. LoanService.createLoan(loan) ejecuta validaciones secuenciales:
+   - Usuario existe ✅ (UserRepository.findById)
+   - Libro existe ✅ (BookRepository.findById)
+   - Libro tiene copias disponibles ✅ (book.getAvailable() > 0)
+   - Decrementa available del libro ✅
+   - Define loanDate = NOW y dueDate = NOW + 14 días ✅
+   - Status = ACTIVE ✅
+5. LoanRepository.save(loan) → INSERT en H2.
+6. BookRepository.save(book) → UPDATE libro (available--).
+7. LoanPersistenceMapper.toDTO(loan) → LoanDTO (con Book + User anidados).
+8. HTTP 201 CREATED + LoanDTO JSON.
 
-### Flujo 4: devolver libro
+### Flujo 4: devolver libro ✅
 
 1. Cliente invoca PUT /api/loans/{id}/return.
-2. LoanService.returnLoan valida existencia y estado ACTIVE.
-3. Cambia a RETURNED y setea returnDate.
-4. BookService.updateAvailability suma 1 copia.
-5. Respuesta 200 OK.
+2. LoanController.returnLoan(id, returnDate) valida con @Valid.
+3. LoanService.returnLoan(id, returnDate) ejecuta:
+   - Verifica loan existe ✅ (LoanRepository.findById)
+   - Verifica status = ACTIVE ✅
+   - Valida returnDate no es futura ✅
+   - Incrementa available del libro ✅ (book.getAvailable()++)
+   - Calcula multa si está vencido ✅ (fine = MAX(0, días_vencidos * $1))
+   - Cambia status = RETURNED si a tiempo, OVERDUE si vencido ✅
+   - Setea returnDate = ahora ✅
+4. LoanRepository.save(loan) → UPDATE en H2.
+5. BookRepository.save(book) → UPDATE libro (available++).
+6. LoanPersistenceMapper.toDTO(loan) → LoanDTO (con fine calculada).
+7. HTTP 200 OK + LoanDTO JSON.
 
-### Flujo 5: seguridad JWT en cada request
+### Flujo 5: seguridad JWT en cada request ✅
 
-1. JwtAuthenticationFilter lee Authorization: Bearer <token>.
-2. JwtService extrae username y valida firma/expiracion.
-3. Si es valido, se setea SecurityContext.
-4. SecurityFilterChain permite o bloquea acceso.
+1. Cliente envia Authorization: Bearer <token> en header.
+2. JwtAuthenticationFilter.doFilterInternal() intercepta el request.
+3. JwtService.extractUsername(token) extrae username del token.
+4. JwtService.validateToken(token) verifica:
+   - Firma válida (con secret key) ✅
+   - No expirado (exp claim < now) ✅
+5. Si validación OK:
+   - UserRepository.findByUsername(username) obtiene User ✅
+   - SecurityContext.setAuthentication(UsernamePasswordAuthenticationToken) ✅
+   - Permite continuar con el request ✅
+6. Si validación FALLA:
+   - SecurityContext queda vacío ✅
+   - SecurityFilterChain lo bloquea (401 Unauthorized) ✅
+7. Controller y service ejecutan con Authorization verificada.
 
 ## Flujo Entre Paquetes y Clases
 
@@ -525,7 +1862,7 @@ Este bloque explica como se conectan los paquetes internamente en tiempo de ejec
 	- disponibilidad de copias
 5. core.model.Loan se crea con estado ACTIVE.
 6. core.service.BookService actualiza inventario (change = -1).
-7. controller.mapper.LoanMapper construye LoanDTO.
+7. persistence.mapper.LoanPersistenceMapper construye LoanDTO y LoanSummaryDTO.
 8. controller.LoanController responde HTTP 201.
 
 ### Flujo de error de validacion
@@ -545,6 +1882,15 @@ Este bloque explica como se conectan los paquetes internamente en tiempo de ejec
 5. si autentica, request continua hacia controller.
 
 ## Explicacion Paso a Paso: Flujos con Codigo Real
+
+⚠️ **NOTA IMPORTANTE (7 de abril 2026):** Esta sección contiene ejemplos educativos del flujo conceptual. El código real del proyecto usa:
+- ✅ `LoanPersistenceMapper.toDTO()` en lugar de `loanMapper.toLoanDTO()`
+- ✅ IDs como `Long` (auto-generados por DB) en lugar de strings
+- ✅ `LoanRepository.save(loan)` (JpaRepository) en lugar de `loansMap.put()`
+- ✅ Entidades `@Entity` consolidadas en `core.model` (no hay Entity separada)
+- ✅ GlobalExceptionHandler + excepciones personalizadas (ResourceNotFoundException, ConflictException, ValidationException)
+
+Los flujos y validaciones conceptuales son correctos; solo los detalles técnicos han sido optimizados.
 
 En esta seccion se muestra el codigo real del proyecto con explicacion linea por linea del proposito y flujo. Se cubre los 3 flujos mas importantes: creacion de prestamo, autenticacion JWT y manejo de errores.
 
@@ -1382,16 +2728,19 @@ En esta seccion se explica para que existe cada clase y que parte de codigo conc
 - LoanSummaryDTO: respuesta liviana para listados.
 	- Parte clave: evita payload grande en consultas masivas.
 
-### Mappers
+### Mappers ✅ CONSOLIDADOS
 
-- BookMapper: conversion Book <-> DTO y aplicacion de inventario.
-	- Parte clave: updateInventory con switch SET/ADD/REMOVE.
+- **BookPersistenceMapper:** Conversión Book ↔ DTO + operaciones de inventario
+  - Parte clave: 4-tier mapping (Entity, DTO, CreateDTO, UpdateDTO) + updateInventory(SET/ADD/REMOVE)
+  - Por qué existe: centralizar transformaciones DTO ↔ Model en persistence layer
 
-- UserMapper: conversion User <-> DTO y update parcial.
-	- Parte clave: updateEntity modifica solo campos no nulos.
+- **UserPersistenceMapper:** Conversión User ↔ DTO + actualización parcial
+  - Parte clave: updateEntity() modifica solo campos no nulos, DTOs no exponen password/credenciales
+  - Por qué existe: serialización segura + lógica de merge de datos
 
-- LoanMapper: conversion Loan -> LoanDTO y LoanSummaryDTO.
-	- Parte clave: mapea relaciones (book y user) y enum status.
+- **LoanPersistenceMapper:** Conversión Loan → LoanDTO y LoanSummaryDTO
+  - Parte clave: mapea relaciones anidadas (Book y User) + enum LoanStatus
+  - Por qué existe: dos niveles de detalle: completo vs liviano para listados
 
 ### Modelos de dominio
 
@@ -1617,6 +2966,11 @@ Este glosario enlaza conceptos clave del proyecto y su contexto en el documento.
 - [JPA](#termino-jpa)
 - [H2](#termino-h2)
 - [Exception Handler](#termino-exception-handler)
+- [Modelo Entidad-Relación (ER)](#termino-modelo-er)
+- [Normalización 3FN](#termino-normalizacion-3fn)
+- [Clave Primaria (PK)](#termino-clave-primaria)
+- [Clave Foránea (FK)](#termino-clave-foranea)
+- [Integridad Referencial](#termino-integridad-referencial)
 
 ### Termino: API REST
 
@@ -1669,3 +3023,67 @@ Base de datos embebida/en memoria usada para desarrollo y pruebas.
 ### Termino: Exception Handler
 
 Mecanismo centralizado para transformar excepciones en respuestas HTTP uniformes.
+
+### Termino: Modelo ER
+
+Representación gráfica de las entidades, atributos y relaciones en una base de datos relacional. En DOSW-Library:
+- Entidades: USER, BOOK, LOAN
+- Relaciones: User ↔ Loan (1:N), Book ↔ Loan (1:N)
+- Atributos con tipos, restricciones y claves
+
+Ver: [Modelo Entidad-Relación Normalizado a 3FN](#modelo-entidad-relación-normalizado-a-3fn)
+
+### Termino: Normalizacion 3FN
+
+**3FN (Tercera Forma Normal)** es el nivel máximo de normalización de bases de datos relacionales que garantiza:
+
+**1FN - Primera Forma Normal:** Todos los atributos son atómicos (indivisibles)
+
+**2FN - Segunda Forma Normal:** Cumple 1FN + sin dependencias parciales
+
+**3FN - Tercera Forma Normal:** Cumple 2FN + sin dependencias transitivas
+
+En DOSW-Library, el modelo cumple estrictamente 3FN:
+- ✅ No hay atributos multivaluados (1FN)
+- ✅ Todos los datos no-clave dependen de la PK (2FN)
+- ✅ No hay datos redundantes en tablas (3FN)
+
+Beneficio: Evita anomalías en inserciones, actualizaciones y eliminaciones.
+
+Ver: [Modelo Entidad-Relación Normalizado a 3FN](#modelo-entidad-relación-normalizado-a-3fn)
+
+### Termino: Clave Primaria
+
+**Primary Key (PK)** es un atributo o conjunto de atributos que identifica únicamente cada registro en una tabla.
+
+En DOSW-Library:
+- User.id (ej: "USR-001")
+- Book.id (ej: "BK-001")
+- Loan.id (ej: "LOAN-001")
+
+Garantiza: No habrá dos registros con la misma clave primaria.
+
+### Termino: Clave Foranea
+
+**Foreign Key (FK)** es un atributo que referencia la clave primaria de otra tabla, creando relaciones entre tablas.
+
+En DOSW-Library:
+- Loan.user_id → User.id (relación 1:N)
+- Loan.book_id → Book.id (relación 1:N)
+
+Garantiza: Integridad referencial (no puede haber préstamo sin usuario/libro válido).
+
+### Termino: Integridad Referencial
+
+Propiedad que asegura que los valores en una clave foránea siempre referenciarn registros válidos de la tabla padre.
+
+En DOSW-Library:
+```sql
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+-- Si se elimina usuario → sus préstamos se eliminan automáticamente
+```
+
+Opciones:
+- `ON DELETE CASCADE`: Elimina registros hijos
+- `ON DELETE RESTRICT`: Impide eliminar si hay hijos
+- `ON DELETE SET NULL`: Asigna NULL al FK en registros hijos

@@ -3,7 +3,7 @@ package edu.eci.dosw.DOSW_Library.controller;
 import edu.eci.dosw.DOSW_Library.controller.dto.CreateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UpdateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UserDTO;
-import edu.eci.dosw.DOSW_Library.controller.mapper.UserMapper;
+import edu.eci.dosw.DOSW_Library.persistence.mapper.UserPersistenceMapper;
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.service.UserService;
@@ -45,199 +45,199 @@ import java.util.List;
 @Tag(name = "Users", description = "API para gestión de usuarios de la biblioteca")
 public class UserController {
 
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+        private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    private final UserService userService;
-    private final UserMapper userMapper;
+        private final UserService userService;
+        private final UserPersistenceMapper userMapper;
 
-    public UserController(UserService userService, UserMapper userMapper) {
-        this.userService = userService;
-        this.userMapper = userMapper;
-        logger.info("UserController initialized");
-    }
+        public UserController(UserService userService, UserPersistenceMapper userMapper) {
+                this.userService = userService;
+                this.userMapper = userMapper;
+                logger.info("UserController initialized");
+        }
 
-    // ============================================
-    // POST - REGISTRAR USUARIO
-    // ============================================
+        // ============================================
+        // POST - REGISTRAR USUARIO
+        // ============================================
 
-    /**
-     * Registra un nuevo usuario en el sistema.
-     * 
-     * <p>
-     * <b>Endpoint:</b> POST /api/users
-     * </p>
-     * 
-     * <p>
-     * <b>Ejemplo de request:</b>
-     * </p>
-     * 
-     * <pre>
-     * POST /api/users
-     * {
-     *   "id": "USR-001",
-     *   "name": "John Doe",
-     *   "email": "john.doe@example.com"
-     * }
-     * </pre>
-     * 
-     * @param createDTO DTO con datos del usuario
-     * @return ResponseEntity con UserDTO y código 201 CREATED
-     */
-    @PostMapping
-    @Operation(summary = "Registrar nuevo usuario", description = "Crea un nuevo usuario en el sistema de biblioteca")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
-            @ApiResponse(responseCode = "409", description = "Usuario o email ya existe")
-    })
-    public ResponseEntity<UserDTO> createUser(
-            @Valid @RequestBody CreateUserDTO createDTO) {
+        /**
+         * Registra un nuevo usuario en el sistema.
+         * 
+         * <p>
+         * <b>Endpoint:</b> POST /api/users
+         * </p>
+         * 
+         * <p>
+         * <b>Ejemplo de request:</b>
+         * </p>
+         * 
+         * <pre>
+         * POST /api/users
+         * {
+         *   "id": "USR-001",
+         *   "name": "John Doe",
+         *   "email": "john.doe@example.com"
+         * }
+         * </pre>
+         * 
+         * @param createDTO DTO con datos del usuario
+         * @return ResponseEntity con UserDTO y código 201 CREATED
+         */
+        @PostMapping
+        @Operation(summary = "Registrar nuevo usuario", description = "Crea un nuevo usuario en el sistema de biblioteca")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
+                        @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                        @ApiResponse(responseCode = "409", description = "Usuario o email ya existe")
+        })
+        public ResponseEntity<UserDTO> createUser(
+                        @Valid @RequestBody CreateUserDTO createDTO) {
 
-        logger.info("POST /api/users - Creating user: {}", createDTO.getId());
-        logger.debug("Request body: {}", createDTO);
+                logger.info("POST /api/users - Creating user: {}", createDTO.getId());
+                logger.debug("Request body: {}", createDTO);
 
-        // DTO → Entity
-        User user = userMapper.toEntity(createDTO);
+                // DTO → Entity
+                User user = userMapper.toEntity(createDTO);
 
-        // Service (lógica de negocio)
-        User createdUser = userService.registerUser(user);
+                // Service (lógica de negocio)
+                User createdUser = userService.registerUser(user);
 
-        // Entity → DTO
-        UserDTO responseDTO = userMapper.toDTO(createdUser);
+                // Entity → DTO
+                UserDTO responseDTO = userMapper.toDTO(createdUser);
 
-        logger.info("User created successfully: {} | Response: {}",
-                createdUser.getId(),
-                HttpStatus.CREATED);
+                logger.info("User created successfully: {} | Response: {}",
+                                createdUser.getId(),
+                                HttpStatus.CREATED);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
-    }
+                return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+        }
 
-    // ============================================
-    // GET - OBTENER TODOS LOS USUARIOS
-    // ============================================
+        // ============================================
+        // GET - OBTENER TODOS LOS USUARIOS
+        // ============================================
 
-    @GetMapping
-    @Operation(summary = "Listar todos los usuarios", description = "Obtiene la lista completa de usuarios registrados")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de usuarios obtenida exitosamente")
-    })
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        logger.info("GET /api/users - Retrieving all users");
+        @GetMapping
+        @Operation(summary = "Listar todos los usuarios", description = "Obtiene la lista completa de usuarios registrados")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de usuarios obtenida exitosamente")
+        })
+        public ResponseEntity<List<UserDTO>> getAllUsers() {
+                logger.info("GET /api/users - Retrieving all users");
 
-        List<User> users = userService.getAllUsers();
-        List<UserDTO> responseDTOs = userMapper.toDTOList(users);
+                List<User> users = userService.getAllUsers();
+                List<UserDTO> responseDTOs = userMapper.toDTOList(users);
 
-        logger.info("Retrieved {} users | Response: {}",
-                responseDTOs.size(),
-                HttpStatus.OK);
+                logger.info("Retrieved {} users | Response: {}",
+                                responseDTOs.size(),
+                                HttpStatus.OK);
 
-        return ResponseEntity.ok(responseDTOs);
-    }
+                return ResponseEntity.ok(responseDTOs);
+        }
 
-    // ============================================
-    // GET - OBTENER USUARIO POR ID
-    // ============================================
+        // ============================================
+        // GET - OBTENER USUARIO POR ID
+        // ============================================
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Obtener usuario por ID", description = "Busca y retorna un usuario específico por su identificador")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Usuario encontrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
-    })
-    public ResponseEntity<UserDTO> getUserById(
-            @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id)
-            throws UserNotFoundException {
+        @GetMapping("/{id}")
+        @Operation(summary = "Obtener usuario por ID", description = "Busca y retorna un usuario específico por su identificador")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Usuario encontrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+        })
+        public ResponseEntity<UserDTO> getUserById(
+                        @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id)
+                        throws UserNotFoundException {
 
-        logger.info("GET /api/users/{} - Retrieving user", id);
+                logger.info("GET /api/users/{} - Retrieving user", id);
 
-        User user = userService.getUserById(id);
-        UserDTO responseDTO = userMapper.toDTO(user);
+                User user = userService.getUserById(id);
+                UserDTO responseDTO = userMapper.toDTO(user);
 
-        logger.info("User {} found | Response: {}", id, HttpStatus.OK);
+                logger.info("User {} found | Response: {}", id, HttpStatus.OK);
 
-        return ResponseEntity.ok(responseDTO);
-    }
+                return ResponseEntity.ok(responseDTO);
+        }
 
-    // ============================================
-    // PATCH - ACTUALIZAR USUARIO
-    // ============================================
+        // ============================================
+        // PATCH - ACTUALIZAR USUARIO
+        // ============================================
 
-    /**
-     * Actualiza información de un usuario existente.
-     * 
-     * <p>
-     * <b>Endpoint:</b> PATCH /api/users/{id}
-     * </p>
-     * 
-     * <p>
-     * <b>Ejemplo de request:</b>
-     * </p>
-     * 
-     * <pre>
-     * PATCH /api/users/USR-001
-     * {
-     *   "name": "Jane Doe",
-     *   "email": "jane.doe@example.com"
-     * }
-     * </pre>
-     * 
-     * @param id        ID del usuario
-     * @param updateDTO DTO con campos a actualizar
-     * @return ResponseEntity con UserDTO actualizado
-     */
-    @PatchMapping("/{id}")
-    @Operation(summary = "Actualizar usuario", description = "Modifica nombre y/o email de un usuario existente")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Usuario actualizado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
-            @ApiResponse(responseCode = "409", description = "Email ya está en uso")
-    })
-    public ResponseEntity<UserDTO> updateUser(
-            @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id,
-            @Valid @RequestBody UpdateUserDTO updateDTO) throws UserNotFoundException {
+        /**
+         * Actualiza información de un usuario existente.
+         * 
+         * <p>
+         * <b>Endpoint:</b> PATCH /api/users/{id}
+         * </p>
+         * 
+         * <p>
+         * <b>Ejemplo de request:</b>
+         * </p>
+         * 
+         * <pre>
+         * PATCH /api/users/USR-001
+         * {
+         *   "name": "Jane Doe",
+         *   "email": "jane.doe@example.com"
+         * }
+         * </pre>
+         * 
+         * @param id        ID del usuario
+         * @param updateDTO DTO con campos a actualizar
+         * @return ResponseEntity con UserDTO actualizado
+         */
+        @PatchMapping("/{id}")
+        @Operation(summary = "Actualizar usuario", description = "Modifica nombre y/o email de un usuario existente")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Usuario actualizado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
+                        @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "409", description = "Email ya está en uso")
+        })
+        public ResponseEntity<UserDTO> updateUser(
+                        @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id,
+                        @Valid @RequestBody UpdateUserDTO updateDTO) throws UserNotFoundException {
 
-        logger.info("PATCH /api/users/{} - Updating user", id);
-        logger.debug("Request body: {}", updateDTO);
+                logger.info("PATCH /api/users/{} - Updating user", id);
+                logger.debug("Request body: {}", updateDTO);
 
-        // Obtener usuario
-        User user = userService.getUserById(id);
+                // Obtener usuario
+                User user = userService.getUserById(id);
 
-        // Aplicar actualizaciones
-        userMapper.updateEntity(user, updateDTO);
+                // Aplicar actualizaciones
+                userMapper.updateEntity(user, updateDTO);
 
-        // Guardar cambios a través del service
-        User updatedUser = userService.updateUser(id, user);
+                // Guardar cambios a través del service
+                User updatedUser = userService.updateUser(id, user);
 
-        // Convertir a DTO
-        UserDTO responseDTO = userMapper.toDTO(updatedUser);
+                // Convertir a DTO
+                UserDTO responseDTO = userMapper.toDTO(updatedUser);
 
-        logger.info("User {} updated successfully | Response: {}", id, HttpStatus.OK);
+                logger.info("User {} updated successfully | Response: {}", id, HttpStatus.OK);
 
-        return ResponseEntity.ok(responseDTO);
-    }
+                return ResponseEntity.ok(responseDTO);
+        }
 
-    // ============================================
-    // DELETE - ELIMINAR USUARIO
-    // ============================================
+        // ============================================
+        // DELETE - ELIMINAR USUARIO
+        // ============================================
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar usuario", description = "Elimina un usuario del sistema (solo si no tiene préstamos activos)")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
-            @ApiResponse(responseCode = "409", description = "No se puede eliminar - tiene préstamos activos")
-    })
-    public ResponseEntity<Void> deleteUser(
-            @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id)
-            throws UserNotFoundException {
+        @DeleteMapping("/{id}")
+        @Operation(summary = "Eliminar usuario", description = "Elimina un usuario del sistema (solo si no tiene préstamos activos)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "409", description = "No se puede eliminar - tiene préstamos activos")
+        })
+        public ResponseEntity<Void> deleteUser(
+                        @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id)
+                        throws UserNotFoundException {
 
-        logger.info("DELETE /api/users/{} - Deleting user", id);
+                logger.info("DELETE /api/users/{} - Deleting user", id);
 
-        userService.deleteUser(id);
+                userService.deleteUser(id);
 
-        logger.info("User {} deleted successfully | Response: {}", id, HttpStatus.NO_CONTENT);
+                logger.info("User {} deleted successfully | Response: {}", id, HttpStatus.NO_CONTENT);
 
-        return ResponseEntity.noContent().build();
-    }
+                return ResponseEntity.noContent().build();
+        }
 }

@@ -52,10 +52,11 @@ public class UserService {
      * @throws IllegalArgumentException Si el usuario ya existe o email duplicado
      */
     public User registerUser(User user) {
-        logger.info("Registering user: {} | Name: '{}' | Email: {}",
+        logger.info("Registering user: {} | Name: '{}' | Email: {} | Username: {}",
                 user.getId(),
                 user.getName(),
-                user.getEmail());
+                user.getEmail(),
+                user.getUsername());
 
         // Validación: usuario no debe existir
         if (userRepository.containsKey(user.getId())) {
@@ -67,6 +68,12 @@ public class UserService {
         if (user.getEmail() != null && isEmailTaken(user.getEmail())) {
             logger.warn("Attempted to register user with duplicate email: {}", user.getEmail());
             throw new IllegalArgumentException("Email " + user.getEmail() + " is already registered");
+        }
+
+        // Validación: username único
+        if (user.getUsername() != null && isUsernameTaken(user.getUsername())) {
+            logger.warn("Attempted to register user with duplicate username: {}", user.getUsername());
+            throw new IllegalArgumentException("Username " + user.getUsername() + " is already taken");
         }
 
         // Guardar usuario
@@ -138,6 +145,34 @@ public class UserService {
         }
 
         logger.info("User found by email: {} | ID: {}", email, user.getId());
+        return user;
+    }
+
+    /**
+     * Busca un usuario por su username.
+     * 
+     * <p>
+     * <b>Propósito:</b> Método para autenticación/login
+     * </p>
+     * 
+     * @param username Username del usuario
+     * @return El usuario encontrado
+     * @throws UserNotFoundException Si no existe usuario con ese username
+     */
+    public User getUserByUsername(String username) throws UserNotFoundException {
+        logger.debug("Searching for user with username: {}", username);
+
+        User user = userRepository.values().stream()
+                .filter(u -> username.equals(u.getUsername()))
+                .findFirst()
+                .orElse(null);
+
+        if (user == null) {
+            logger.warn("User not found with username: {}", username);
+            throw UserNotFoundException.byEmail(username);
+        }
+
+        logger.info("User found by username: {} | ID: {}", username, user.getId());
         return user;
     }
 
@@ -237,6 +272,27 @@ public class UserService {
                 .anyMatch(u -> email.equals(u.getEmail()));
 
         logger.debug("Email '{}' is taken: {}", email, taken);
+        return taken;
+    }
+
+    /**
+     * Verifica si un username ya está registrado.
+     * 
+     * <p>
+     * <b>Propósito:</b> Validar unicidad de username para autenticación
+     * </p>
+     * 
+     * @param username Username a verificar
+     * @return true si el username está en uso, false en caso contrario
+     */
+    private boolean isUsernameTaken(String username) {
+        if (username == null)
+            return false;
+
+        boolean taken = userRepository.values().stream()
+                .anyMatch(u -> username.equals(u.getUsername()));
+
+        logger.debug("Username '{}' is taken: {}", username, taken);
         return taken;
     }
 
