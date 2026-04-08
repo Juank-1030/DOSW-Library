@@ -12,11 +12,13 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -134,10 +136,13 @@ public class BookController {
          * @return ResponseEntity con BookDTO y código 201 CREATED
          */
         @PostMapping
+        @PreAuthorize("hasRole('LIBRARIAN')")
         @Operation(summary = "Crear nuevo libro", description = "Registra un nuevo libro en el sistema de biblioteca con su inventario inicial")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "201", description = "Libro creado exitosamente", content = @Content(schema = @Schema(implementation = BookDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos (validación fallida)"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "409", description = "El libro ya existe en el sistema")
         })
         public ResponseEntity<BookDTO> createBook(
@@ -201,8 +206,10 @@ public class BookController {
          */
         @GetMapping
         @Operation(summary = "Listar todos los libros", description = "Obtiene la lista completa de libros registrados en la biblioteca")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de libros obtenida exitosamente")
+                        @ApiResponse(responseCode = "200", description = "Lista de libros obtenida exitosamente"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header")
         })
         public ResponseEntity<List<BookDTO>> getAllBooks() {
                 logger.info("GET /api/books - Retrieving all books");
@@ -261,8 +268,10 @@ public class BookController {
          */
         @GetMapping("/{id}")
         @Operation(summary = "Obtener libro por ID", description = "Busca y retorna un libro específico por su identificador único")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Libro encontrado exitosamente", content = @Content(schema = @Schema(implementation = BookDTO.class))),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Libro no encontrado")
         })
         public ResponseEntity<BookDTO> getBookById(
@@ -334,10 +343,13 @@ public class BookController {
          * @return ResponseEntity con BookDTO actualizado y código 200 OK
          */
         @PatchMapping("/{id}/inventory")
+        @PreAuthorize("hasRole('LIBRARIAN')")
         @Operation(summary = "Actualizar inventario de libro", description = "Modifica la cantidad de copias disponibles mediante operaciones SET, ADD o REMOVE")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Inventario actualizado exitosamente", content = @Content(schema = @Schema(implementation = BookDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Operación inválida o datos incorrectos"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Libro no encontrado"),
                         @ApiResponse(responseCode = "409", description = "Operación resultaría en inventario negativo")
         })
@@ -350,25 +362,19 @@ public class BookController {
                                 updateDTO.getOperation(),
                                 updateDTO.getQuantity());
 
-                // Obtener libro
-                Book book = bookService.getBookById(id);
-
-                // Aplicar actualización de inventario
-                bookMapper.updateInventory(book, updateDTO);
-
-                // Si es SET, usar método específico del service
+                // Delegación al servicio según tipo de operación
                 if (updateDTO.getOperation() == UpdateBookInventoryDTO.InventoryOperation.SET) {
+                        // Establecer cantidad absoluta
                         bookService.setBookCopies(id, updateDTO.getQuantity());
                 } else {
-                        // Para ADD y REMOVE, el mapper ya actualizó la entidad
-                        // Solo necesitamos sincronizar con el service
+                        // ADD o REMOVE: calcular cambio incremental
                         int change = updateDTO.getOperation() == UpdateBookInventoryDTO.InventoryOperation.ADD
                                         ? updateDTO.getQuantity()
                                         : -updateDTO.getQuantity();
                         bookService.updateAvailability(id, change);
                 }
 
-                // Obtener libro actualizado
+                // Obtener libro actualizado desde BD
                 Book updatedBook = bookService.getBookById(id);
                 BookDTO responseDTO = bookMapper.toDTO(updatedBook);
 
@@ -399,9 +405,12 @@ public class BookController {
          * @return ResponseEntity vacío con código 204 NO CONTENT
          */
         @DeleteMapping("/{id}")
+        @PreAuthorize("hasRole('LIBRARIAN')")
         @Operation(summary = "Eliminar libro", description = "Elimina un libro del sistema (solo si no tiene préstamos activos)")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "204", description = "Libro eliminado exitosamente"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Libro no encontrado"),
                         @ApiResponse(responseCode = "409", description = "No se puede eliminar - tiene préstamos activos")
         })
@@ -445,8 +454,10 @@ public class BookController {
          */
         @GetMapping("/{id}/available")
         @Operation(summary = "Verificar disponibilidad", description = "Consulta si un libro tiene copias disponibles para préstamo")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Información de disponibilidad obtenida"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Libro no encontrado")
         })
         public ResponseEntity<AvailabilityResponse> checkAvailability(

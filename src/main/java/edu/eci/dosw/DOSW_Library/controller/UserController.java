@@ -14,11 +14,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -64,6 +67,10 @@ public class UserController {
          * Registra un nuevo usuario en el sistema.
          * 
          * <p>
+         * <b>AUTORIZACIÓN:</b> Solo BIBLIOTECARIOS pueden registrar usuarios
+         * </p>
+         * 
+         * <p>
          * <b>Endpoint:</b> POST /api/users
          * </p>
          * 
@@ -73,6 +80,7 @@ public class UserController {
          * 
          * <pre>
          * POST /api/users
+         * Authorization: Bearer {token}
          * {
          *   "id": "USR-001",
          *   "name": "John Doe",
@@ -84,10 +92,13 @@ public class UserController {
          * @return ResponseEntity con UserDTO y código 201 CREATED
          */
         @PostMapping
-        @Operation(summary = "Registrar nuevo usuario", description = "Crea un nuevo usuario en el sistema de biblioteca")
+        @PreAuthorize("hasRole('LIBRARIAN')")
+        @Operation(summary = "Registrar nuevo usuario", description = "Crea un nuevo usuario en el sistema de biblioteca (solo BIBLIOTECARIO)")
+        @SecurityRequirement(name = "Bearer Authentication")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos (requiere rol LIBRARIAN)"),
                         @ApiResponse(responseCode = "409", description = "Usuario o email ya existe")
         })
         public ResponseEntity<UserDTO> createUser(
@@ -117,9 +128,12 @@ public class UserController {
         // ============================================
 
         @GetMapping
-        @Operation(summary = "Listar todos los usuarios", description = "Obtiene la lista completa de usuarios registrados")
+        @PreAuthorize("hasRole('LIBRARIAN')")
+        @Operation(summary = "Listar todos los usuarios", description = "Obtiene la lista completa de usuarios registrados (solo BIBLIOTECARIO)")
+        @SecurityRequirement(name = "Bearer Authentication")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de usuarios obtenida exitosamente")
+                        @ApiResponse(responseCode = "200", description = "Lista de usuarios obtenida exitosamente"),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos (requiere rol LIBRARIAN)")
         })
         public ResponseEntity<List<UserDTO>> getAllUsers() {
                 logger.info("GET /api/users - Retrieving all users");
@@ -139,13 +153,17 @@ public class UserController {
         // ============================================
 
         @GetMapping("/{id}")
-        @Operation(summary = "Obtener usuario por ID", description = "Busca y retorna un usuario específico por su identificador")
+        @PreAuthorize("hasRole('LIBRARIAN') or @userSecurityService.isOwner(#id, authentication)")
+        @Operation(summary = "Obtener usuario por ID", description = "Busca y retorna un usuario específico (solo sí mismo o BIBLIOTECARIO)")
+        @SecurityRequirement(name = "Bearer Authentication")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Usuario encontrado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos para ver este usuario"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
         })
         public ResponseEntity<UserDTO> getUserById(
-                        @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id)
+                        @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id,
+                        Authentication authentication)
                         throws UserNotFoundException {
 
                 logger.info("GET /api/users/{} - Retrieving user", id);
@@ -166,6 +184,11 @@ public class UserController {
          * Actualiza información de un usuario existente.
          * 
          * <p>
+         * <b>AUTORIZACIÓN:</b> Solo BIBLIOTECARIOS o el usuario sí mismo puede
+         * actualizar
+         * </p>
+         * 
+         * <p>
          * <b>Endpoint:</b> PATCH /api/users/{id}
          * </p>
          * 
@@ -175,6 +198,7 @@ public class UserController {
          * 
          * <pre>
          * PATCH /api/users/USR-001
+         * Authorization: Bearer {token}
          * {
          *   "name": "Jane Doe",
          *   "email": "jane.doe@example.com"
@@ -186,16 +210,20 @@ public class UserController {
          * @return ResponseEntity con UserDTO actualizado
          */
         @PatchMapping("/{id}")
-        @Operation(summary = "Actualizar usuario", description = "Modifica nombre y/o email de un usuario existente")
+        @PreAuthorize("hasRole('LIBRARIAN') or @userSecurityService.isOwner(#id, authentication)")
+        @Operation(summary = "Actualizar usuario", description = "Modifica nombre y/o email de un usuario (solo sí mismo o BIBLIOTECARIO)")
+        @SecurityRequirement(name = "Bearer Authentication")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Usuario actualizado exitosamente", content = @Content(schema = @Schema(implementation = UserDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos para actualizar este usuario"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                         @ApiResponse(responseCode = "409", description = "Email ya está en uso")
         })
         public ResponseEntity<UserDTO> updateUser(
                         @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String id,
-                        @Valid @RequestBody UpdateUserDTO updateDTO) throws UserNotFoundException {
+                        @Valid @RequestBody UpdateUserDTO updateDTO,
+                        Authentication authentication) throws UserNotFoundException {
 
                 logger.info("PATCH /api/users/{} - Updating user", id);
                 logger.debug("Request body: {}", updateDTO);
@@ -222,9 +250,12 @@ public class UserController {
         // ============================================
 
         @DeleteMapping("/{id}")
-        @Operation(summary = "Eliminar usuario", description = "Elimina un usuario del sistema (solo si no tiene préstamos activos)")
+        @PreAuthorize("hasRole('LIBRARIAN')")
+        @Operation(summary = "Eliminar usuario", description = "Elimina un usuario del sistema (solo BIBLIOTECARIO)")
+        @SecurityRequirement(name = "Bearer Authentication")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos (requiere rol LIBRARIAN)"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                         @ApiResponse(responseCode = "409", description = "No se puede eliminar - tiene préstamos activos")
         })

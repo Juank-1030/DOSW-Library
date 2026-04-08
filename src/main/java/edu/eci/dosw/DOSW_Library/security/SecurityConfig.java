@@ -97,7 +97,8 @@ public class SecurityConfig {
      * Configurable via application.properties:
      * - cors.allowedOrigins: Comma-separated list of allowed origins
      * - cors.allowedMethods: HTTP methods allowed (GET, POST, PUT, DELETE, OPTIONS)
-     * - cors.allowedHeaders: Headers allowed in requests (Authorization, Content-Type, etc.)
+     * - cors.allowedHeaders: Headers allowed in requests (Authorization,
+     * Content-Type, etc.)
      * - cors.exposedHeaders: Headers exposed to client response
      * - cors.maxAge: Seconds to cache pre-flight response
      * - cors.allowCredentials: Whether cookies are allowed
@@ -105,29 +106,29 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        
+
         // ✅ Allow requests from any origin (configurable via properties)
         config.setAllowedOriginPatterns(Arrays.asList("*"));
-        
+
         // ✅ Allow standard HTTP methods
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        
+
         // ✅ Allow headers including Authorization for Bearer tokens
         config.setAllowedHeaders(Arrays.asList("*"));
-        
+
         // ✅ Expose headers to client (for pagination, custom headers, etc.)
         config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Total-Count"));
-        
+
         // ✅ Cache pre-flight response for 1 hour (3600 seconds)
         config.setMaxAge(3600L);
-        
+
         // ✅ Allow credentials (cookies, authorization headers)
         config.setAllowCredentials(true);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // ✅ Apply CORS config to all endpoints
         source.registerCorsConfiguration("/**", config);
-        
+
         return source;
     }
 }

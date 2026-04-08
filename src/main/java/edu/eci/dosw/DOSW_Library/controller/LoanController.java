@@ -15,11 +15,14 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -127,10 +130,13 @@ public class LoanController {
          * @throws LoanLimitExceededException Si el usuario alcanzó el límite
          */
         @PostMapping
+        @PreAuthorize("hasRole('USER') or hasRole('LIBRARIAN')")
         @Operation(summary = "Crear préstamo de libro", description = "Registra un nuevo préstamo validando disponibilidad y límites del usuario")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "201", description = "Préstamo creado exitosamente", content = @Content(schema = @Schema(implementation = LoanDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "403", description = "Usuario ha alcanzado el límite de préstamos (3)"),
                         @ApiResponse(responseCode = "404", description = "Usuario o libro no encontrado"),
                         @ApiResponse(responseCode = "409", description = "Libro no disponible o usuario ya tiene préstamo del mismo libro")
@@ -177,9 +183,12 @@ public class LoanController {
          * @return ResponseEntity con lista de préstamos
          */
         @GetMapping
+        @PreAuthorize("hasRole('LIBRARIAN')")
         @Operation(summary = "Listar todos los préstamos", description = "Obtiene la lista completa de préstamos registrados en el sistema")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de préstamos obtenida exitosamente")
+                        @ApiResponse(responseCode = "200", description = "Lista de préstamos obtenida exitosamente"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header")
         })
         public ResponseEntity<?> getAllLoans(
                         @Parameter(description = "Retornar versión resumida", example = "false") @RequestParam(required = false, defaultValue = "false") boolean summary) {
@@ -208,9 +217,12 @@ public class LoanController {
         // ============================================
 
         @GetMapping("/{id}")
+        @PreAuthorize("hasRole('LIBRARIAN') or @userSecurityService.isLoanOwner(#id, authentication)")
         @Operation(summary = "Obtener préstamo por ID", description = "Busca y retorna un préstamo específico por su identificador")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Préstamo encontrado exitosamente", content = @Content(schema = @Schema(implementation = LoanDTO.class))),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Préstamo no encontrado")
         })
         public ResponseEntity<LoanDTO> getLoanById(
@@ -269,9 +281,12 @@ public class LoanController {
          * @return ResponseEntity con LoanDTO actualizado
          */
         @PutMapping("/{id}/return")
+        @PreAuthorize("hasRole('LIBRARIAN') or @userSecurityService.isLoanOwner(#id, authentication)")
         @Operation(summary = "Devolver libro prestado", description = "Marca un préstamo como devuelto y actualiza el inventario")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Libro devuelto exitosamente", content = @Content(schema = @Schema(implementation = LoanDTO.class))),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Préstamo no encontrado"),
                         @ApiResponse(responseCode = "409", description = "Préstamo ya fue devuelto anteriormente")
         })
@@ -296,9 +311,12 @@ public class LoanController {
         // ============================================
 
         @GetMapping("/user/{userId}")
+        @PreAuthorize("@userSecurityService.canAccessUserLoans(#userId, authentication)")
         @Operation(summary = "Obtener préstamos de un usuario", description = "Lista todos los préstamos (activos y devueltos) de un usuario específico")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Lista de préstamos obtenida exitosamente"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
         })
         public ResponseEntity<List<LoanDTO>> getLoansByUser(
@@ -322,9 +340,12 @@ public class LoanController {
         // ============================================
 
         @GetMapping("/user/{userId}/active")
+        @PreAuthorize("@userSecurityService.canAccessUserLoans(#userId, authentication)")
         @Operation(summary = "Obtener préstamos activos de un usuario", description = "Lista solo los préstamos activos (no devueltos) de un usuario")
+        @SecurityRequirement(name = "bearerAuth")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de préstamos activos obtenida")
+                        @ApiResponse(responseCode = "200", description = "Lista de préstamos activos obtenida"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado - Falta token en Authorization header")
         })
         public ResponseEntity<List<LoanDTO>> getActiveLoans(
                         @Parameter(description = "ID del usuario", example = "USR-001") @PathVariable String userId) {

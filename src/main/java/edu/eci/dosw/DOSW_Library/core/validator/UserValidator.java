@@ -1,6 +1,7 @@
 package edu.eci.dosw.DOSW_Library.core.validator;
 
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.model.UserRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -98,8 +99,7 @@ public class UserValidator {
      * presente)</li>
      * <li>Password debe tener longitud entre 6 y 255 caracteres (si está
      * presente)</li>
-     * <li>Role debe ser válido: ADMIN, BIBLIOTECARIO, USUARIO (si está
-     * presente)</li>
+     * <li>Role debe ser válido: USER, LIBRARIAN (si está presente)</li>
      * </ul>
      * 
      * @param user Usuario a validar
@@ -138,7 +138,7 @@ public class UserValidator {
         }
 
         // Validar role (si está presente)
-        if (user.getRole() != null && !user.getRole().trim().isEmpty()) {
+        if (user.getRole() != null) {
             errors.addAll(validateRole(user.getRole()));
         }
 
@@ -418,15 +418,14 @@ public class UserValidator {
      * <b>Roles válidos:</b>
      * </p>
      * <ul>
-     * <li>ADMIN - Administrador del sistema</li>
-     * <li>BIBLIOTECARIO - Personal de biblioteca</li>
-     * <li>USUARIO - Usuario normal</li>
+     * <li>USER - Usuario regular (puede solicitar préstamos)</li>
+     * <li>LIBRARIAN - Bibliotecario (puede gestionar préstamos y usuarios)</li>
      * </ul>
      * 
-     * @param role Role del usuario
+     * @param role Rol del usuario (enum UserRole)
      * @return Lista de errores de validación
      */
-    public List<String> validateRole(String role) {
+    public List<String> validateRole(UserRole role) {
         List<String> errors = new ArrayList<>();
 
         if (role == null) {
@@ -434,16 +433,9 @@ public class UserValidator {
             return errors;
         }
 
-        String trimmedRole = role.trim();
-
-        if (trimmedRole.isEmpty()) {
-            errors.add("Role cannot be empty");
-            return errors;
-        }
-
-        if (!trimmedRole.matches("^(ADMIN|BIBLIOTECARIO|USUARIO)$")) {
-            errors.add("Role must be one of: ADMIN, BIBLIOTECARIO, USUARIO");
-        }
+        // UserRole es un enum, solo puede ser USER o LIBRARIAN
+        // No hay validación adicional necesaria, pero se puede extender aquí
+        logger.debug("Role validated: {}", role.name());
 
         return errors;
     }

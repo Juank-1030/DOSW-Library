@@ -54,10 +54,9 @@ spring:
       tags-sorter: alpha
       display-request-duration: true
 
-# ============================================
-# H2 Console (Optional for testing/admin)
-# ============================================
-spring:
+  # ============================================
+  # H2 Console (Optional for testing/admin)
+  # ============================================
   h2:
     console:
       enabled: false  # Set to true if you want to use H2 alongside PostgreSQL
@@ -104,3 +103,4 @@ server:
   error:
     include-message: ALWAYS
     include-binding-errors: ALWAYS
+

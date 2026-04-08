@@ -3,6 +3,8 @@ package edu.eci.dosw.DOSW_Library.core.model;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -58,16 +60,36 @@ public class User {
     private String password;
 
     /**
-     * NUEVO: Rol del usuario (BIBLIOTECARIO, USUARIO)
+     * NUEVO: Rol del usuario (USER, LIBRARIAN)
      */
     @Column(nullable = false, length = 50)
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private UserRole role;
+
+    /**
+     * NUEVO: Estado del usuario (ACTIVE, SUSPENDED, BLOCKED)
+     */
+    @Column(nullable = false, length = 50)
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 
     /**
      * NUEVO: DNI único del usuario
      */
     @Column(nullable = false, unique = true, length = 15)
     private String dni;
+
+    /**
+     * AUDITORÍA: Usuario que creó este registro
+     */
+    @Column(length = 50)
+    private String createdBy;
+
+    /**
+     * AUDITORÍA: Usuario que modificó este registro
+     */
+    @Column(length = 50)
+    private String modifiedBy;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -94,6 +116,12 @@ public class User {
         }
         if (this.updatedAt == null) {
             this.updatedAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = UserStatus.ACTIVE;
+        }
+        if (this.role == null) {
+            this.role = UserRole.USER;
         }
     }
 

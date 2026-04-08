@@ -15186,7 +15186,430 @@ public void testExceedLoanLimit() {
 
 ---
 
-## 📌 Conclusiones
+## � Cómo Se Implementó Swagger/OpenAPI en DOSW Library
+
+### ✅ Status: Completamente Implementado
+
+Swagger UI está disponible en: **`https://localhost:8443/swagger-ui.html`**
+
+### Paso 1: Dependencia Maven
+
+**Archivo:** `pom.xml`
+
+```xml
+<!-- SpringDoc OpenAPI - Integración automática de OpenAPI 3 con Swagger UI -->
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>1.7.0</version>
+</dependency>
+```
+
+**¿Qué hace?** Permite que Spring Boot genere automáticamente especificación OpenAPI 3.0 y expone Swagger UI en `/swagger-ui.html`
+
+---
+
+### Paso 2: Configuración Bean (OpenApiConfig.java)
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/config/OpenApiConfig.java`
+
+```java
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI libraryOpenApi() {
+        return new OpenAPI()
+            // 1️⃣ Define el esquema de seguridad: "Bearer HTTP JWT"
+            .components(new Components()
+                .addSecuritySchemes("bearerAuth", new SecurityScheme()
+                    .type(SecurityScheme.Type.HTTP)      // Tipo: HTTP
+                    .scheme("bearer")                      // Scheme: Bearer
+                    .bearerFormat("JWT")                   // Formato: JWT
+                ))
+            
+            // 2️⃣ Aplica el requisito de seguridad a TODOS los endpoints
+            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+            
+            // 3️⃣ Información general de la API
+            .info(new Info()
+                .title("DOSW Library API")
+                .description("RESTful API para gestion de libros, usuarios y prestamos")
+                .version("v1")
+                .contact(new Contact()
+                    .name("DOSW Development Team")
+                    .email("support@dosw.edu.eci"))
+                .license(new License()
+                    .name("GNU AFFERO GENERAL PUBLIC LICENSE v3.0")
+                    .url("https://www.gnu.org/licenses/agpl-3.0.html")));
+    }
+}
+```
+
+**¿Qué hace?**
+- Define que la seguridad es "HTTP Bearer JWT"
+- Aplica automáticamente el requisito a todos los endpoints (no requiere @SecurityRequirement en cada uno)
+- Proporciona metadatos: título, descripción, versión, contacto, licencia
+- Permite que Swagger UI muestre el botón "Authorize" (🔓)
+
+---
+
+### Paso 3: Anotaciones en Controllers
+
+**Archivo:** `BookController.java` (muestra patrón para todos los controllers)
+
+```java
+@RestController
+@RequestMapping("/api/books")
+@Tag(name = "Books", description = "Gestión de libros")
+public class BookController {
+
+    @PostMapping
+    @Operation(
+        summary = "Crear nuevo libro",
+        description = "Crea un nuevo registro de libro en la biblioteca. Solo LIBRARIAN pueden crear."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Libro creado exitosamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o duplicado"),
+        @ApiResponse(responseCode = "401", description = "No autenticado - Se requiere token Bearer"),
+        @ApiResponse(responseCode = "403", description = "Prohibido - Solo LIBRARIAN pueden crear")
+    })
+    @PreAuthorize("hasRole('LIBRARIAN')")
+    public ResponseEntity<BookDTO> createBook(@Valid @RequestBody CreateBookDTO dto) {
+        // ... implementación ...
+    }
+
+    @GetMapping
+    @Operation(
+        summary = "Listar todos los libros",
+        description = "Retorna lista completa de libros disponibles"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Exitoso"),
+        @ApiResponse(responseCode = "401", description = "No autenticado - Se requiere token Bearer")
+    })
+    public ResponseEntity<List<BookDTO>> getAllBooks() {
+        // ... implementación ...
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "Actualizar libro")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Actualizado"),
+        @ApiResponse(responseCode = "401", description = "No autenticado"),
+        @ApiResponse(responseCode = "403", description = "Prohibido - Solo LIBRARIAN")
+    })
+    @PreAuthorize("hasRole('LIBRARIAN')")
+    public ResponseEntity<BookDTO> updateBook(@PathVariable String id, 
+                                              @Valid @RequestBody UpdateBookDTO dto) {
+        // ... implementación ...
+    }
+}
+```
+
+**¿Qué hacen las anotaciones?**
+- `@Tag` - Agrupa endpoints por categoría en Swagger
+- `@Operation` - Describe el endpoint (resumen y descripción)
+- `@ApiResponses` - Documenta posibles códigos HTTP y su significado
+- `@PreAuthorize` - Protege el endpoint (requiere rol específico)
+
+**Resultado en Swagger:** Cada endpoint muestra:
+- 🔒 Icono de lock (si requiere autenticación)
+- Descripción clara del propósito
+- Códigos HTTP esperados con explicaciones
+- Esquema de request/response
+
+---
+
+### Paso 4: Integración con SecurityConfig
+
+**Archivo:** `SecurityConfig.java`
+
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/auth/**").permitAll()
+    .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()  // ← Swagger es público
+    .anyRequest().authenticated()
+)
+```
+
+**¿Qué hace?** Permite acceso sin token a:
+- `/swagger-ui/**` - La interfaz gráfica de Swagger
+- `/api-docs/**` - La especificación OpenAPI (JSON/YAML)
+- `/auth/**` - Endpoints de login (para obtener token)
+
+---
+
+### Paso 5: Propiedades de Configuración
+
+**Archivo:** `application.properties`
+
+```properties
+# Enable Swagger/OpenAPI endpoints
+springdoc.swagger-ui.enabled=true
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.operationsSorter=method
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.show-common-extensions=true
+```
+
+**¿Qué hacen?**
+- `enabled=true` - Activa Swagger UI
+- `path=/swagger-ui.html` - URL de acceso
+- `operationsSorter=method` - Agrupa por método HTTP (GET, POST, etc.)
+- `show-common-extensions=true` - Muestra extensiones útiles
+
+---
+
+### 📊 Resumen de Implementación
+
+| Componente | Ubicación | Propósito |
+|-----------|-----------|----------|
+| **Dependencia** | pom.xml | springdoc-openapi (genera OpenAPI automáticamente) |
+| **Configuración** | OpenApiConfig.java | Define esquema "Bearer HTTP JWT" |
+| **Documentación** | Controllers | @Operation, @ApiResponses, @Tag |
+| **Seguridad** | SecurityConfig.java | Permite acceso a /swagger-ui/** sin token |
+| **Properties** | application.properties | Habilita y configura Swagger UI |
+
+---
+
+## 📖 Guía Práctica: Testear 4 Escenarios de Seguridad en Swagger UI
+
+### 🚀 INICIO RÁPIDO
+
+```
+1. Inicia la aplicación:
+   $ java -jar target/DOSW-Library-0.0.1-SNAPSHOT.jar
+
+2. Abre Swagger en el navegador:
+   https://localhost:8443/swagger-ui.html
+   (Ignora advertencia de certificado SSL autofirmado)
+
+3. Sigue los 4 escenarios abajo
+```
+
+---
+
+### 📋 ESCENARIO 1: Acceso SIN Token → Espera 401 Unauthorized
+
+**Objetivo:** Verificar que sin token, el servidor retorna 401
+
+**Pasos:**
+
+1. En Swagger UI, busca el endpoint **`GET /api/books`** (sección "Books")
+   - Deberías ver un 🔒 lock icon indicando que requiere autenticación
+
+2. Haz click en "Try it out"
+
+3. **NO hagas click en "Authorize"** (queremos probar sin token)
+
+4. Haz click en "Execute"
+
+5. **Resultado esperado:**
+   ```
+   Response Code: 401 Unauthorized
+   Response Headers:
+     Content-Type: application/json
+   Response Body:
+     {
+       "status": "UNAUTHORIZED",
+       "message": "Authentication required",
+       "timestamp": "2026-04-08T20:30:15Z"
+     }
+   ```
+
+**¿Por qué 401?** El endpoint GET /api/books requiere un token Bearer válido en el header Authorization. Sin él, Spring Security rechaza la solicitud.
+
+---
+
+### 📋 ESCENARIO 2: Token Inválido → Espera 401 Unauthorized
+
+**Objetivo:** Verificar que un token malformado o inválido retorna 401
+
+**Pasos:**
+
+1. Busca el endpoint **`GET /api/books`**
+
+2. Haz click en "Try it out"
+
+3. Haz click en el botón "Authorize" (🔓 en la esquina superior derecha)
+
+4. En el modal que aparece, **pega un token falso:**
+   ```
+   Bearer invalid.fake.token.not.really.jwt
+   ```
+
+5. Haz click en "Authorize"
+
+6. Regresa al endpoint GET /api/books y haz click en "Execute"
+
+7. **Resultado esperado:**
+   ```
+   Response Code: 401 Unauthorized
+   Response Body:
+     {
+       "status": "UNAUTHORIZED",
+       "message": "Invalid or expired token",
+       "timestamp": "2026-04-08T20:30:22Z"
+     }
+   ```
+
+**¿Por qué 401?** JwtService valida la firma JWT. Si el token está malformado o la firma no es válida, rechaza.
+
+---
+
+### 📋 ESCENARIO 3: Usuario USER intenta CREAR libro → Espera 403 Forbidden
+
+**Objetivo:** Verificar que un usuario con rol USER no puede crear libros (requiere LIBRARIAN)
+
+**Pasos:**
+
+1. Primero, **obtén un token USER:**
+   - Busca endpoint **`POST /auth/login`** (sección "Auth")
+   - Haz click en "Try it out"
+   - **NO hagas click en Authorize** (login es público)
+   - En el body, pega:
+     ```json
+     {
+       "username": "user",
+       "password": "user1234"
+     }
+     ```
+   - Haz click en "Execute"
+   - **Copia el token** del response (campo `token`)
+
+2. Luego, **usa ese token para intentar crear:**
+   - Haz click en "Authorize" (🔓)
+   - Pega: `Bearer <token_que_copiaste>`
+   - Haz click en "Authorize"
+
+3. Busca endpoint **`POST /api/books`** (sección "Books")
+
+4. Haz click en "Try it out"
+
+5. En el body, pega:
+   ```json
+   {
+     "title": "Test Book",
+     "author": "Test Author",
+     "isbn": "9999999999999",
+     "copiesAvailable": 5
+   }
+   ```
+
+6. Haz click en "Execute"
+
+7. **Resultado esperado:**
+   ```
+   Response Code: 403 Forbidden
+   Response Body:
+     {
+       "status": "FORBIDDEN",
+       "message": "Access denied: You do not have the required permissions",
+       "timestamp": "2026-04-08T20:30:30Z"
+     }
+   ```
+
+**¿Por qué 403?** El endpoint tiene `@PreAuthorize("hasRole('LIBRARIAN')")`. El token USER tiene role "USER", no "LIBRARIAN", así que es rechazado con 403.
+
+---
+
+### 📋 ESCENARIO 4: Usuario LIBRARIAN crea libro → Espera 201 Created
+
+**Objetivo:** Verificar que un usuario LIBRARIAN PUEDE crear libros
+
+**Pasos:**
+
+1. **Obtén un token LIBRARIAN:**
+   - Busca endpoint **`POST /auth/login`** nuevamente
+   - Haz click en "Try it out"
+   - **Desmarcar el token anterior** si está autorizado (click en "Authorize" → "Logout")
+   - En el body, pega:
+     ```json
+     {
+       "username": "admin",
+       "password": "admin1234"
+     }
+     ```
+   - Haz click en "Execute"
+   - **Copia el token** del response
+
+2. **Autoriza con token LIBRARIAN:**
+   - Haz click en "Authorize" (🔓)
+   - Pega: `Bearer <token_admin>`
+   - Haz click en "Authorize"
+
+3. Busca endpoint **`POST /api/books`**
+
+4. Haz click en "Try it out"
+
+5. En el body, pega:
+   ```json
+   {
+     "title": "Clean Code",
+     "author": "Robert C. Martin",
+     "isbn": "0132350882",
+     "copiesAvailable": 3
+   }
+   ```
+
+6. Haz click en "Execute"
+
+7. **Resultado esperado:**
+   ```
+   Response Code: 201 Created
+   Response Headers:
+     Location: /api/books/BOOK-xyz123
+   Response Body:
+     {
+       "id": "BOOK-xyz123",
+       "title": "Clean Code",
+       "author": "Robert C. Martin",
+       "isbn": "0132350882",
+       "copiesAvailable": 3,
+       "createdAt": "2026-04-08T20:30:45Z",
+       "updatedAt": "2026-04-08T20:30:45Z"
+     }
+   ```
+
+**¿Por qué 201?** El token LIBRARIAN tiene role "LIBRARIAN", satisface `@PreAuthorize("hasRole('LIBRARIAN')")`, y el libro se crea exitosamente con HTTP 201 Created.
+
+---
+
+### 📊 Resumen Comparativo
+
+| Escenario | Request | Token | Rol | HTTP | Razón |
+|-----------|---------|-------|-----|------|-------|
+| 1️⃣ Sin token | GET /api/books | ❌ None | - | **401** | No hay header Authorization |
+| 2️⃣ Token inválido | GET /api/books | ❌ Falso | - | **401** | JWT firma inválida |
+| 3️⃣ USER crea libro | POST /api/books | ✅ USER | USER | **403** | @PreAuthorize falla |
+| 4️⃣ LIBRARIAN crea | POST /api/books | ✅ LIBRARIAN | LIBRARIAN | **201** | Permiso granted ✅ |
+
+---
+
+### 🔒 Usuarios de Prueba Precargados
+
+| Usuario | Contraseña | Rol | Propósito |
+|---------|-----------|-----|----------|
+| `admin` | `admin1234` | LIBRARIAN | Crear/editar/eliminar recursos |
+| `user` | `user1234` | USER | Acceso lectura, crear préstamos |
+| `librarian` | `lib12345` | LIBRARIAN | Alternativa |
+
+---
+
+### 🐛 Troubleshooting
+
+| Problema | Solución |
+|----------|----------|
+| "Certificado SSL inválido" | Esperado (certificado autofirmado). Continúa o agrega excepción. |
+| 404 en /swagger-ui.html | Verifica que `springdoc.swagger-ui.enabled=true` en application.properties |
+| Token autoriza pero sigue 401 | El token puede estar expirado (default: 1 hora). Repite POST /auth/login |
+| 403 esperado pero viene 401 | Token puede ser inválido. Verifica que copiaste sin espacios. |
+
+---
+
+## �📌 Conclusiones
 
 ### Fortalezas Identificadas
 ✅ **Validaciones en capas:** DTO → Negocio → Estado  
