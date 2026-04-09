@@ -7,18 +7,18 @@ skinparam arrowColor #333333
 skinparam shadowing false
 
 entity User {
-    *id : VARCHAR(20) <<PK>>
+    *id : VARCHAR(20)
     *name : VARCHAR(100)
-    *email : VARCHAR(100) <<UNIQUE>>
-    *username : VARCHAR(50) <<UNIQUE>>
+    *email : VARCHAR(100)
+    *username : VARCHAR(50)
     *password : VARCHAR(255)
-    *role : ENUM('BIBLIOTECARIO', 'USUARIO')
+    *role : ENUM
     *created_at : TIMESTAMP
     *updated_at : TIMESTAMP
 }
 
 entity Book {
-    *id : VARCHAR(20) <<PK>>
+    *id : VARCHAR(20)
     *title : VARCHAR(200)
     *author : VARCHAR(100)
     *copies : INT
@@ -28,18 +28,18 @@ entity Book {
 }
 
 entity Loan {
-    *id : VARCHAR(20) <<PK>>
-    *user_id : VARCHAR(20) <<FK>>
-    *book_id : VARCHAR(20) <<FK>>
+    *id : VARCHAR(20)
+    *user_id : VARCHAR(20)
+    *book_id : VARCHAR(20)
     *loan_date : TIMESTAMP
     *due_date : TIMESTAMP
     return_date : TIMESTAMP
-    *status : ENUM('ACTIVE', 'RETURNED')
+    *status : ENUM
     *created_at : TIMESTAMP
     *updated_at : TIMESTAMP
 }
 
-User ||--o{ Loan : solicita
-Book ||--o{ Loan : es_prestado
+User ||--o{ Loan
+Book ||--o{ Loan
 
 @enduml

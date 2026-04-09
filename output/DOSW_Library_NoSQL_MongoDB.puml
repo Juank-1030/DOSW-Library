@@ -1,73 +1,67 @@
 @startuml DOSW_Library_NoSQL_MongoDB
 !theme plain
 skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
 skinparam classBorderColor #333333
+skinparam arrowColor #333333
 skinparam shadowing false
 
-class "users" as Users <<MongoDB Collection>> {
-    _id: ObjectId
-    id: String
-    name: String
-    email: String
-    username: String
-    role: String
-    security: {
-        passwordHash: String
-        lastLogin: Date
-        loginAttempts: int
-    }
-    createdAt: Date
-    updatedAt: Date
+class Users {
+    _id : ObjectId
+    id : String
+    name : String
+    email : String
+    username : String
+    role : String
+    passwordHash : String
+    lastLogin : Date
+    loginAttempts : int
+    createdAt : Date
+    updatedAt : Date
 }
 
-class "books" as Books <<MongoDB Collection>> {
-    _id: ObjectId
-    id: String
-    title: String
-    author: String
-    inventory: {
-        total: int
-        available: int
-        loaned: int
-    }
-    metadata: {
-        isbn: String
-        pages: int
-        language: String
-        publisher: String
-    }
-    categories: String[]
-    createdAt: Date
-    updatedAt: Date
+class Books {
+    _id : ObjectId
+    id : String
+    title : String
+    author : String
+    isbn : String
+    pages : int
+    language : String
+    publisher : String
+    total : int
+    available : int
+    loaned : int
+    categories : String[]
+    createdAt : Date
+    updatedAt : Date
 }
 
-class "loans" as Loans <<MongoDB Collection>> {
-    _id: ObjectId
-    id: String
-    userRef: {
-        userId: String
-        userName: String
-        userEmail: String
-    }
-    bookRef: {
-        bookId: String
-        bookTitle: String
-        bookAuthor: String
-    }
-    loanDate: Date
-    dueDate: Date
-    returnDate: Date
-    status: String
-    history: [{
-        status: String
-        changedAt: Date
-        reason: String
-    }]
-    createdAt: Date
-    updatedAt: Date
+class Loans {
+    _id : ObjectId
+    id : String
+    userId : String
+    userName : String
+    userEmail : String
+    bookId : String
+    bookTitle : String
+    bookAuthor : String
+    loanDate : Date
+    dueDate : Date
+    returnDate : Date
+    status : String
+    createdAt : Date
+    updatedAt : Date
 }
 
-Loans --> Users : userRef
-Loans --> Books : bookRef
+class LoanHistory {
+    status : String
+    changedAt : Date
+    reason : String
+}
+
+Loans --> Users : references
+Loans --> Books : references
+Loans *-- LoanHistory : embeds
 
 @enduml
