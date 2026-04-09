@@ -54,6 +54,12 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
    - Arquitectura simplificada
    - Validaciones en BD
 
+7.1. **[Modelo No Relacional (NoSQL) - MongoDB](#modelo-no-relacional-nosql---mongodb)**
+   - Colecciones (users, books, loans)
+   - Datos embebidos vs referenciados
+   - Desnormalización estratégica
+   - Comparativa SQL vs NoSQL
+
 8. **[Implementación JPA: Entidades con Anotaciones](#implementación-jpa-entidades-con-anotaciones-)**
    - User.java (Entidad de Usuarios)
    - Book.java (Entidad de Libros)
@@ -798,6 +804,312 @@ La arquitectura fue simplificada eliminando duplicación: los modelos de dominio
 **Modelo Entidad-Relación Normalizado a 3FN:**
 
 ![DOSW Library - Modelo Entidad Relación 3FN](images/Diagrama%20ER%203FN.png)
+
+---
+
+## Modelo No Relacional (NoSQL) - MongoDB
+
+Este proyecto implementa una **arquitectura dual de persistencia** que permite trabajar tanto con bases de datos relacionales (PostgreSQL) como con bases de datos no relacionales (MongoDB).
+
+### Diagrama Completo: OOP + NoSQL Document
+
+El siguiente diagrama muestra:
+- **Lado izquierdo**: Modelo de orientación a objetos con herencia (User, LibrarianUser, RegularUser)
+- **Lado derecho**: Representación de documentos NoSQL en MongoDB
+- **Relaciones**: Embebidas (`*--`) para datos que pertenecen semánticamente al documento y referenciadas (`o--`) para datos que se normalizarían en SQL
+
+```plantuml
+@startuml DOSW_Library_NoSQL_Complete
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+skinparam arrowColor #333333
+skinparam shadowing false
+
+class User {
+    id : String
+    name : String
+    email : String
+    username : String
+    password : String
+    createdAt : Date
+    updatedAt : Date
+}
+
+class LibrarianUser {
+    permissions : String[]
+    department : String
+}
+
+class RegularUser {
+    membershipLevel : String
+    maxLoans : int
+}
+
+class Book {
+    id : String
+    title : String
+    author : String
+    isbn : String
+    total : int
+    available : int
+    loaned : int
+    categories : String[]
+    createdAt : Date
+    updatedAt : Date
+}
+
+class Loan {
+    id : String
+    loanDate : Date
+    dueDate : Date
+    returnDate : Date
+    status : String
+    createdAt : Date
+    updatedAt : Date
+}
+
+class LoanHistory {
+    status : String
+    changedAt : Date
+    reason : String
+}
+
+User <|-- LibrarianUser
+User <|-- RegularUser
+
+RegularUser -- Loan
+LibrarianUser -- Loan
+Book -- Loan
+
+Loan *-- LoanHistory
+Loan o-- User
+
+package "NoSQL Document (MongoDB)" {
+    class "db.users" as DocUsers {
+        _id : ObjectId
+        id : String
+        name : String
+        email : String
+        username : String
+        passwordHash : String
+        role : String
+        permissions : String[]
+        department : String
+        membershipLevel : String
+        maxLoans : int
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "db.books" as DocBooks {
+        _id : ObjectId
+        id : String
+        title : String
+        author : String
+        isbn : String
+        pages : int
+        language : String
+        publisher : String
+        total : int
+        available : int
+        loaned : int
+        categories : String[]
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "db.loans" as DocLoans {
+        _id : ObjectId
+        id : String
+        userId : String
+        userName : String
+        userRole : String
+        bookId : String
+        bookTitle : String
+        bookAuthor : String
+        loanDate : Date
+        dueDate : Date
+        returnDate : Date
+        status : String
+        history : LoanHistoryDoc[]
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "LoanHistoryDoc" as LoanHistoryDoc {
+        status : String
+        changedAt : Date
+        reason : String
+    }
+}
+
+User *-- DocUsers
+Book *-- DocBooks
+Loan *-- DocLoans
+
+DocLoans o-- DocUsers
+DocLoans o-- DocBooks
+
+DocLoans *-- LoanHistoryDoc
+
+@enduml
+```
+
+### Estrategia de Desnormalización en NoSQL
+
+#### Colección `users` (Embebida)
+
+```json
+{
+  "_id": ObjectId("..."),
+  "id": "USER-001",
+  "name": "Juan Pérez",
+  "email": "juan@example.com",
+  "username": "juanperez",
+  "passwordHash": "$2a$10$N9qo8uLO...",
+  "role": "USUARIO",
+  "membershipLevel": "STANDARD",
+  "maxLoans": 5,
+  "createdAt": "2026-04-01T08:00:00Z",
+  "updatedAt": "2026-04-01T10:30:00Z"
+}
+```
+
+**Índices recomendados:**
+```javascript
+db.users.createIndex({ email: 1 })
+db.users.createIndex({ username: 1 })
+db.users.createIndex({ createdAt: -1 })
+```
+
+#### Colección `books` (Embebida)
+
+```json
+{
+  "_id": ObjectId("..."),
+  "id": "BOOK-001",
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "isbn": "978-0132350884",
+  "pages": 464,
+  "language": "ES",
+  "publisher": "Prentice Hall",
+  "total": 5,
+  "available": 3,
+  "loaned": 2,
+  "categories": ["Programming", "Design"],
+  "createdAt": "2026-04-01T08:00:00Z",
+  "updatedAt": "2026-04-01T15:45:00Z"
+}
+```
+
+**Índices recomendados:**
+```javascript
+db.books.createIndex({ title: 1 })
+db.books.createIndex({ author: 1 })
+db.books.createIndex({ categories: 1 })
+db.books.createIndex({ "available": { $gt: 0 } })
+```
+
+#### Colección `loans` (Referenciada + Embebida)
+
+```json
+{
+  "_id": ObjectId("..."),
+  "id": "LOAN-001",
+  "userRef": {
+    "userId": "USER-001",
+    "userName": "Juan Pérez",
+    "userRole": "USUARIO"
+  },
+  "bookRef": {
+    "bookId": "BOOK-001",
+    "bookTitle": "Clean Code",
+    "bookAuthor": "Robert C. Martin"
+  },
+  "loanDate": "2026-03-25T14:00:00Z",
+  "dueDate": "2026-04-08T23:59:59Z",
+  "returnDate": null,
+  "status": "ACTIVE",
+  "history": [
+    {
+      "status": "ACTIVE",
+      "changedAt": "2026-03-25T14:00:00Z",
+      "reason": "Préstamo creado"
+    }
+  ],
+  "createdAt": "2026-03-25T14:00:00Z",
+  "updatedAt": "2026-04-01T10:30:00Z"
+}
+```
+
+**Índices recomendados:**
+```javascript
+db.loans.createIndex({ "userRef.userId": 1 })
+db.loans.createIndex({ "bookRef.bookId": 1 })
+db.loans.createIndex({ status: 1 })
+db.loans.createIndex({ dueDate: 1 })
+db.loans.createIndex({ "userRef.userId": 1, status: 1 })
+```
+
+### Comparativa: SQL vs NoSQL
+
+| Aspecto | PostgreSQL (3FN) | MongoDB (NoSQL) |
+|--------|-----------------|----------------|
+| **Normalización** | Estricta (3 tablas) | Desnormalizada (3 colecciones) |
+| **Joins** | Requeridos para consultas | Minimizados (embebido referenciado) |
+| **Queries** | `SELECT * FROM users JOIN loans...` | `db.loans.findOne({})` (todo en 1 doc) |
+| **Consistencia** | ACID garantizada | Eventual (transacciones multi-doc en v4.0+) |
+| **Escalabilidad** | Vertical (upgrade del servidor) | Horizontal (sharding por userId) |
+| **Flexibilidad** | Schema fijo | Schema flexible (campos opcionales) |
+| **User History** | Tabla separada LoanStatus | Embebido en loans[].history |
+| **Rendimiento lectura** | Moderado (con índices) | Muy rápido (documento completo) |
+| **Rendimiento escritura** | Muy rápido (normalized) | Moderado (actualizar array history) |
+
+### Patrones de Consulta NoSQL
+
+#### 1. Obtener usuario con su historial completo
+```javascript
+db.loans.find({
+  "userRef.userId": "USER-001",
+  status: "ACTIVE"
+})
+```
+**Ventaja:** Obtiene usuario + préstamo + historial en UNA consulta
+**En SQL:** Requeriría JOIN users-loans + JOIN loans-loanstatus (2-3 queries)
+
+#### 2. Actualizar estado de préstamo con auditoría
+```javascript
+db.loans.updateOne(
+  { id: "LOAN-001" },
+  {
+    $set: { status: "RETURNED", returnDate: new Date() },
+    $push: {
+      history: {
+        status: "RETURNED",
+        changedAt: new Date(),
+        reason: "Devolución completada"
+      }
+    }
+  }
+)
+```
+**Ventaja:** Transacción atómica (update + push en mismo documento)
+**En SQL:** Requerirían 2 UPDATEs separados (uno en loans, otro en loanstatus)
+
+#### 3. Búsqueda de libros disponibles
+```javascript
+db.books.find({
+  available: { $gt: 0 },
+  categories: "Programming"
+}).limit(10)
+```
+**Ventaja:** Índice en 'available' y 'categories' = búsqueda rápida
+**En SQL:** Ídem, con índices similares
+
+---
 
 ### Entidades Principales
 
