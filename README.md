@@ -9,7 +9,8 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
 1. [Resumen Ejecutivo](#resumen-ejecutivo)
 2. [Objetivo y Alcance](#objetivo-y-alcance)
 3. [Stack Tecnologico](#stack-tecnologico)
-4. [Persistencia Dual: SQL + MongoDB](#persistencia-dual-sql--mongodb)
+4. [Configuración Spring Initializer - Requisito Verificado](#-configuración-spring-initializer---requisito-verificado)
+5. [Persistencia Dual: SQL + MongoDB](#persistencia-dual-sql--mongodb)
 5. [Arquitectura del Proyecto](#arquitectura-del-proyecto)
 5. [Anotaciones y Por Que Se Usan](#anotaciones-y-por-que-se-usan)
 6. [Estructura de Paquetes](#estructura-de-paquetes)
@@ -71,6 +72,43 @@ Construir una API de biblioteca robusta para practicar principios de arquitectur
 ### Lenguaje y Runtime
 - **Java 21** (LTS - Long Term Support)
 - **Spring Boot 4.0.3** (framework principal)
+
+### 🔧 Configuración Spring Initializer - Requisito Verificado
+
+**Proyecto generado con Spring Initializer** en https://start.spring.io/ con las siguientes configuraciones:
+
+#### Parametros de Inicialización
+| Parámetro | Valor |
+|-----------|-------|
+| **Project Type** | Maven Project |
+| **Language** | Java |
+| **Spring Boot Version** | 4.0.3 |
+| **Project Metadata - Group** | edu.eci.dosw |
+| **Project Metadata - Artifact** | DOSW-Library |
+| **Packaging** | JAR |
+| **Java Version** | 21 |
+
+#### Dependencies Seleccionadas en Spring Initializer ✅
+
+Todas estas dependencias fueron **seleccionadas en Spring Initializer** y están disponibles en `pom.xml`:
+
+1. **Spring Data JPA** - ORM con Hibernate para SQL
+2. **Spring Data MongoDB** - ⭐ Persistencia NoSQL (Requisito Principal)
+3. **Spring Web** - REST Controllers y Web MVC
+4. **Spring Security** - Autenticación y autorización
+5. **Validation** - Validación de DTOs con Jakarta Validation
+6. **Lombok** - Reducción de boilerplate code
+7. **H2 Database** - BD en memoria para desarrollo/testing
+8. **Spring Boot Test** - Testing (JUnit 5, Mockito)
+9. **Springdoc OpenAPI** - Swagger/OpenAPI UI
+10. **JJWT** - JSON Web Tokens (agregada manualmente post-initializer)
+
+**URL de Spring Initializer con la configuración actual:**
+```
+https://start.spring.io/#!type=maven-project&language=java&platformVersion=4.0.3&packaging=jar&jvmVersion=21&groupId=edu.eci.dosw&artifactId=DOSW-Library&name=DOSW-Library&description=Ejercicio%20de%20clase%20DOSW%20T2&packageName=edu.eci.dosw.DOSW_Library&dependencies=web,data-jpa,data-mongodb,security,validation,lombok,h2,test
+```
+
+**Evidencia en pom.xml:** [Ver dependencias en pom.xml](pom.xml#L33-L120)
 
 ### Dependencias Maven (en pom.xml)
 
