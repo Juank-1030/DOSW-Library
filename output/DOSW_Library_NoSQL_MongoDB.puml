@@ -12,8 +12,12 @@ class Users {
     name : String
     email : String
     username : String
-    role : String
     passwordHash : String
+    role : String
+    permissions : String[]
+    department : String
+    membershipLevel : String
+    maxLoans : int
     lastLogin : Date
     loginAttempts : int
     createdAt : Date
@@ -42,7 +46,7 @@ class Loans {
     id : String
     userId : String
     userName : String
-    userEmail : String
+    userRole : String
     bookId : String
     bookTitle : String
     bookAuthor : String

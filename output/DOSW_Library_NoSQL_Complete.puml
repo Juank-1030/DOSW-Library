@@ -1,0 +1,146 @@
+@startuml DOSW_Library_NoSQL_Complete
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+skinparam arrowColor #333333
+skinparam shadowing false
+
+' Definición de clases principales
+class User {
+    id : String
+    name : String
+    email : String
+    username : String
+    password : String
+    createdAt : Date
+    updatedAt : Date
+}
+
+class LibrarianUser {
+    permissions : String[]
+    department : String
+}
+
+class RegularUser {
+    membershipLevel : String
+    maxLoans : int
+}
+
+class Book {
+    id : String
+    title : String
+    author : String
+    isbn : String
+    total : int
+    available : int
+    loaned : int
+    categories : String[]
+    createdAt : Date
+    updatedAt : Date
+}
+
+class Loan {
+    id : String
+    loanDate : Date
+    dueDate : Date
+    returnDate : Date
+    status : String
+    createdAt : Date
+    updatedAt : Date
+}
+
+class LoanHistory {
+    status : String
+    changedAt : Date
+    reason : String
+}
+
+' Relaciones de herencia
+User <|-- LibrarianUser
+User <|-- RegularUser
+
+' Relaciones de asociación
+RegularUser -- Loan
+LibrarianUser -- Loan
+Book -- Loan
+
+' Composición embebida (diamante relleno)
+Loan *-- LoanHistory
+
+' Agregación referenciada (diamante vacío)
+Loan o-- User
+
+' Sección NoSQL Document
+package "NoSQL Document (MongoDB)" {
+    class "db.users" as DocUsers {
+        _id : ObjectId
+        id : String
+        name : String
+        email : String
+        username : String
+        passwordHash : String
+        role : String
+        permissions : String[]
+        department : String
+        membershipLevel : String
+        maxLoans : int
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "db.books" as DocBooks {
+        _id : ObjectId
+        id : String
+        title : String
+        author : String
+        isbn : String
+        pages : int
+        language : String
+        publisher : String
+        total : int
+        available : int
+        loaned : int
+        categories : String[]
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "db.loans" as DocLoans {
+        _id : ObjectId
+        id : String
+        userId : String
+        userName : String
+        userRole : String
+        bookId : String
+        bookTitle : String
+        bookAuthor : String
+        loanDate : Date
+        dueDate : Date
+        returnDate : Date
+        status : String
+        history : LoanHistoryDoc[]
+        createdAt : Date
+        updatedAt : Date
+    }
+
+    class "LoanHistoryDoc" as LoanHistoryDoc {
+        status : String
+        changedAt : Date
+        reason : String
+    }
+}
+
+' Conexiones embebidas (composición - diamante relleno)
+User *-- DocUsers
+Book *-- DocBooks
+Loan *-- DocLoans
+
+' Conexiones referenciadas (agregación - diamante vacío)
+DocLoans o-- DocUsers
+DocLoans o-- DocBooks
+
+' Composición de historial en documento
+DocLoans *-- LoanHistoryDoc
+
+@enduml

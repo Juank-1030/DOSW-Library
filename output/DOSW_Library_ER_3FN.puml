@@ -21,8 +21,11 @@ entity Book {
     *id : VARCHAR(20)
     *title : VARCHAR(200)
     *author : VARCHAR(100)
+    *isbn : VARCHAR(20)
     *copies : INT
     *available : INT
+    *loaned : INT
+    categories : TEXT
     *created_at : TIMESTAMP
     *updated_at : TIMESTAMP
 }
@@ -39,7 +42,16 @@ entity Loan {
     *updated_at : TIMESTAMP
 }
 
+entity LoanStatus {
+    *id : INT
+    *loan_id : VARCHAR(20)
+    *status : ENUM
+    *changed_at : TIMESTAMP
+    reason : TEXT
+}
+
 User ||--o{ Loan
 Book ||--o{ Loan
+Loan ||--o{ LoanStatus
 
 @enduml
