@@ -6,11 +6,8 @@ skinparam classBorderColor #333333
 skinparam arrowColor #333333
 skinparam shadowing false
 
-title DOSW Library - Modelo Entidad Relacion Normalizado a 3FN
-
 entity User {
     *id : VARCHAR(20) <<PK>>
-    --
     *name : VARCHAR(100)
     *email : VARCHAR(100) <<UNIQUE>>
     *username : VARCHAR(50) <<UNIQUE>>
@@ -22,18 +19,16 @@ entity User {
 
 entity Book {
     *id : VARCHAR(20) <<PK>>
-    --
     *title : VARCHAR(200)
     *author : VARCHAR(100)
-    *copies : INT <<CHECK: > 0>>
-    *available : INT <<CHECK: >= 0 AND <= copies>>
+    *copies : INT
+    *available : INT
     *created_at : TIMESTAMP
     *updated_at : TIMESTAMP
 }
 
 entity Loan {
     *id : VARCHAR(20) <<PK>>
-    --
     *user_id : VARCHAR(20) <<FK>>
     *book_id : VARCHAR(20) <<FK>>
     *loan_date : TIMESTAMP
