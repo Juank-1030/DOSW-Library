@@ -266,12 +266,12 @@ public interface BookRepository extends JpaRepository<Book, String> {
      * </p>
      * 
      * <pre>
-     * SELECT COUNT(b) FROM Book b WHERE b.available = true
+     * SELECT COUNT(b) FROM Book b WHERE b.available > 0
      * </pre>
      * 
      * @return Cantidad de libros disponibles
      */
-    @Query("SELECT COUNT(b) FROM Book b WHERE b.available = true")
+    @Query("SELECT COUNT(b) FROM Book b WHERE b.available > 0")
     long countAvailableBooks();
 
     /**

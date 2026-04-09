@@ -8,15 +8,23 @@ import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.model.Loan;
 import edu.eci.dosw.DOSW_Library.core.model.LoanStatus;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.repository.LoanRepository;
 import edu.eci.dosw.DOSW_Library.core.service.BookService;
 import edu.eci.dosw.DOSW_Library.core.service.LoanService;
 import edu.eci.dosw.DOSW_Library.core.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 class LoanServiceTest {
 
@@ -24,19 +32,13 @@ class LoanServiceTest {
     private UserService userService;
     private LoanService loanService;
 
+    @Mock
+    private LoanRepository loanRepository;
+
     @BeforeEach
     void setUp() {
-        bookService = new BookService();
-        userService = new UserService();
-        loanService = new LoanService(bookService, userService);
-
-        bookService.addBook(new Book("B001", "Clean Code", "Robert C. Martin"), 2);
-        bookService.addBook(new Book("B002", "Design Patterns", "GoF"), 1);
-        bookService.addBook(new Book("B003", "Refactoring", "Martin Fowler"), 1);
-        bookService.addBook(new Book("B004", "Domain-Driven Design", "Eric Evans"), 1);
-
-        userService.registerUser(new User("U001", "John Doe"));
-        userService.registerUser(new User("U002", "Jane Doe"));
+        MockitoAnnotations.openMocks(this);
+        loanService = new LoanService(loanRepository, bookService, userService);
     }
 
     @Test

@@ -2,11 +2,13 @@ package edu.eci.dosw.DOSW_Library.core.service;
 
 import edu.eci.dosw.DOSW_Library.core.exception.ResourceNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.Book;
+import edu.eci.dosw.DOSW_Library.core.repository.BookRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
 
 /**
  * Servicio de gestión de libros de la biblioteca.
@@ -56,9 +58,19 @@ public class BookService {
 
     private static final Logger logger = LoggerFactory.getLogger(BookService.class);
 
-    // Simulación de base de datos en memoria
-    private final Map<String, Book> bookInventory = new HashMap<>();
-    private final Map<String, Integer> bookCopies = new HashMap<>();
+    // Inyección del repositorio de Spring Data JPA
+    private final BookRepository bookRepository;
+
+    /**
+     * Constructor con inyección de dependencias.
+     * 
+     * @param bookRepository Repositorio de libros gerenciado por Spring Data JPA
+     */
+    @Autowired
+    public BookService(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+        logger.info("BookService initialized with BookRepository");
+    }
 
     // ============================================
     // OPERACIONES DE CREACIÓN
@@ -97,7 +109,7 @@ public class BookService {
                 copies);
 
         // Validación de negocio: libro no debe existir
-        if (bookInventory.containsKey(book.getId())) {
+        if (bookRepository.existsById(book.getId())) {
             logger.warn("Attempted to add duplicate book: {}", book.getId());
             throw new IllegalArgumentException("Book with ID " + book.getId() + " already exists");
         }
@@ -106,17 +118,16 @@ public class BookService {
         book.setCopies(copies);
         book.setAvailable(copies); // available es Integer (cantidad), no boolean
 
-        // Guardar en "base de datos"
-        bookInventory.put(book.getId(), book);
-        bookCopies.put(book.getId(), copies);
+        // Guardar en BD
+        Book savedBook = bookRepository.save(book);
 
-        logger.debug("Book added successfully. Current inventory size: {}", bookInventory.size());
+        logger.debug("Book added successfully. Current inventory size: {}", bookRepository.count());
         logger.info("Book {} registered | Available: {} | Copies: {}",
                 book.getId(),
                 book.getAvailable(),
                 copies);
 
-        return book;
+        return savedBook;
     }
 
     // ============================================
@@ -143,12 +154,11 @@ public class BookService {
     public Book getBookById(String bookId) {
         logger.debug("Searching for book with ID: {}", bookId);
 
-        Book book = bookInventory.get(bookId);
-
-        if (book == null) {
-            logger.warn("Book not found: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.warn("Book not found: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
         logger.info("Book found: {} | Title: '{}'", bookId, book.getTitle());
         return book;
@@ -160,9 +170,9 @@ public class BookService {
      * @return Lista de todos los libros
      */
     public List<Book> getAllBooks() {
-        logger.debug("Retrieving all books. Total count: {}", bookInventory.size());
+        logger.debug("Retrieving all books. Total count: {}", bookRepository.count());
 
-        List<Book> books = new ArrayList<>(bookInventory.values());
+        List<Book> books = bookRepository.findAll();
 
         logger.info("Retrieved {} books from inventory", books.size());
         return books;
@@ -178,12 +188,13 @@ public class BookService {
     public int getAvailableCopies(String bookId) {
         logger.debug("Getting available copies for book: {}", bookId);
 
-        if (!bookCopies.containsKey(bookId)) {
-            logger.error("Cannot get copies - Book not found: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.error("Cannot get copies - Book not found: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
-        int copies = bookCopies.get(bookId);
+        int copies = book.getAvailable() != null ? book.getAvailable() : 0;
 
         logger.debug("Book {} has {} available copies", bookId, copies);
         return copies;
@@ -217,19 +228,19 @@ public class BookService {
     public boolean isBookAvailable(String bookId) {
         logger.debug("Checking availability for book: {}", bookId);
 
-        Integer copies = bookCopies.get(bookId);
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.error("Book ID not found in inventory: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
-        if (copies == null) {
-            logger.error("Book ID not found in inventory: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
-
-        boolean available = copies > 0;
+        Integer availableCopies = book.getAvailable();
+        boolean available = availableCopies != null && availableCopies > 0;
 
         if (!available) {
             logger.warn("Book {} has no available copies", bookId);
         } else {
-            logger.info("Book {} is available. Copies: {}", bookId, copies);
+            logger.info("Book {} is available. Copies: {}", bookId, availableCopies);
         }
 
         return available;
@@ -278,13 +289,13 @@ public class BookService {
     public void updateAvailability(String bookId, int change) {
         logger.debug("Updating availability for book: {} | Change: {}", bookId, change);
 
-        Integer currentCopies = bookCopies.get(bookId);
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.error("Cannot update availability - Book not found: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
-        if (currentCopies == null) {
-            logger.error("Cannot update availability - Book not found: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
-
+        Integer currentCopies = book.getAvailable() != null ? book.getAvailable() : 0;
         int newCopies = currentCopies + change;
 
         // Validación de negocio: no puede haber copias negativas
@@ -296,13 +307,12 @@ public class BookService {
                             Math.abs(change), bookId, currentCopies));
         }
 
-        // Actualizar copias
-        bookCopies.put(bookId, newCopies);
-
-        // Actualizar disponibilidad en la entidad (available es Integer, no boolean)
-        Book book = bookInventory.get(bookId);
+        // Actualizar copias en la entidad
         book.setCopies(newCopies);
-        book.setAvailable(newCopies); // Asignar cantidad directamente
+        book.setAvailable(newCopies);
+
+        // Guardar cambios en BD
+        bookRepository.save(book);
 
         logger.info("Book {} availability updated: {} -> {} copies | Available: {}",
                 bookId, currentCopies, newCopies, book.getAvailable());
@@ -328,17 +338,18 @@ public class BookService {
             throw new IllegalArgumentException("Quantity cannot be negative");
         }
 
-        if (!bookInventory.containsKey(bookId)) {
-            logger.error("Cannot set copies - Book not found: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.error("Cannot set copies - Book not found: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
-        int oldCopies = bookCopies.get(bookId);
-        bookCopies.put(bookId, newQuantity);
+        int oldCopies = book.getAvailable() != null ? book.getAvailable() : 0;
 
-        Book book = bookInventory.get(bookId);
         book.setCopies(newQuantity);
-        book.setAvailable(newQuantity); // Asignar cantidad directamente, no boolean
+        book.setAvailable(newQuantity);
+
+        bookRepository.save(book);
 
         logger.info("Book {} copies set: {} -> {} | Available: {}",
                 bookId, oldCopies, newQuantity, book.getAvailable());
@@ -365,13 +376,13 @@ public class BookService {
     public void deleteBook(String bookId) {
         logger.info("Attempting to delete book: {}", bookId);
 
-        if (!bookInventory.containsKey(bookId)) {
-            logger.error("Cannot delete - Book not found: {}", bookId);
-            throw new ResourceNotFoundException("Book", bookId);
-        }
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> {
+                    logger.error("Cannot delete - Book not found: {}", bookId);
+                    return new ResourceNotFoundException("Book", bookId);
+                });
 
-        Book book = bookInventory.remove(bookId);
-        bookCopies.remove(bookId);
+        bookRepository.deleteById(bookId);
 
         logger.info("Book deleted: {} | Title: '{}'", bookId, book.getTitle());
     }
@@ -387,7 +398,7 @@ public class BookService {
      * @return true si existe, false en caso contrario
      */
     public boolean existsById(String bookId) {
-        boolean exists = bookInventory.containsKey(bookId);
+        boolean exists = bookRepository.existsById(bookId);
         logger.debug("Book {} exists: {}", bookId, exists);
         return exists;
     }
@@ -398,7 +409,7 @@ public class BookService {
      * @return Cantidad total de libros
      */
     public int getTotalBooks() {
-        int total = bookInventory.size();
+        int total = (int) bookRepository.count();
         logger.debug("Total books in inventory: {}", total);
         return total;
     }

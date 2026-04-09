@@ -2,11 +2,13 @@ package edu.eci.dosw.DOSW_Library.core.service;
 
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
 
 /**
  * Servicio de gestión de usuarios de la biblioteca.
@@ -29,8 +31,19 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-    // Simulación de base de datos en memoria
-    private final Map<String, User> userRepository = new HashMap<>();
+    // Inyección del repositorio de Spring Data JPA
+    private final UserRepository userRepository;
+
+    /**
+     * Constructor con inyección de dependencias.
+     * 
+     * @param userRepository Repositorio de usuarios gerenciado por Spring Data JPA
+     */
+    @Autowired
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+        logger.info("UserService initialized with UserRepository");
+    }
 
     // ============================================
     // OPERACIONES DE CREACIÓN
@@ -59,7 +72,7 @@ public class UserService {
                 user.getUsername());
 
         // Validación: usuario no debe existir
-        if (userRepository.containsKey(user.getId())) {
+        if (userRepository.existsById(user.getId())) {
             logger.warn("Attempted to register duplicate user: {}", user.getId());
             throw new IllegalArgumentException("User with ID " + user.getId() + " already exists");
         }
@@ -76,13 +89,13 @@ public class UserService {
             throw new IllegalArgumentException("Username " + user.getUsername() + " is already taken");
         }
 
-        // Guardar usuario
-        userRepository.put(user.getId(), user);
+        // Guardar usuario en BD
+        User savedUser = userRepository.save(user);
 
-        logger.debug("User registered successfully. Total users: {}", userRepository.size());
+        logger.debug("User registered successfully. Total users: {}", userRepository.count());
         logger.info("User {} registered successfully", user.getId());
 
-        return user;
+        return savedUser;
     }
 
     // ============================================
@@ -99,12 +112,11 @@ public class UserService {
     public User getUserById(String userId) throws UserNotFoundException {
         logger.debug("Searching for user with ID: {}", userId);
 
-        User user = userRepository.get(userId);
-
-        if (user == null) {
-            logger.warn("User not found: {}", userId);
-            throw UserNotFoundException.byId(userId);
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    logger.warn("User not found: {}", userId);
+                    return UserNotFoundException.byId(userId);
+                });
 
         logger.info("User found: {} | Name: '{}'", userId, user.getName());
         return user;
@@ -116,9 +128,9 @@ public class UserService {
      * @return Lista de todos los usuarios
      */
     public List<User> getAllUsers() {
-        logger.debug("Retrieving all users. Total count: {}", userRepository.size());
+        logger.debug("Retrieving all users. Total count: {}", userRepository.count());
 
-        List<User> users = new ArrayList<>(userRepository.values());
+        List<User> users = userRepository.findAll();
 
         logger.info("Retrieved {} users from system", users.size());
         return users;
@@ -134,15 +146,11 @@ public class UserService {
     public User getUserByEmail(String email) throws UserNotFoundException {
         logger.debug("Searching for user with email: {}", email);
 
-        User user = userRepository.values().stream()
-                .filter(u -> email.equals(u.getEmail()))
-                .findFirst()
-                .orElse(null);
-
-        if (user == null) {
-            logger.warn("User not found with email: {}", email);
-            throw UserNotFoundException.byEmail(email);
-        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    logger.warn("User not found with email: {}", email);
+                    return UserNotFoundException.byEmail(email);
+                });
 
         logger.info("User found by email: {} | ID: {}", email, user.getId());
         return user;
@@ -162,15 +170,11 @@ public class UserService {
     public User getUserByUsername(String username) throws UserNotFoundException {
         logger.debug("Searching for user with username: {}", username);
 
-        User user = userRepository.values().stream()
-                .filter(u -> username.equals(u.getUsername()))
-                .findFirst()
-                .orElse(null);
-
-        if (user == null) {
-            logger.warn("User not found with username: {}", username);
-            throw UserNotFoundException.byEmail(username);
-        }
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> {
+                    logger.warn("User not found with username: {}", username);
+                    return UserNotFoundException.byEmail(username);
+                });
 
         logger.info("User found by username: {} | ID: {}", username, user.getId());
         return user;
@@ -213,8 +217,10 @@ public class UserService {
             existingUser.setEmail(updatedUser.getEmail());
         }
 
+        User savedUser = userRepository.save(existingUser);
+
         logger.info("User {} updated successfully", userId);
-        return existingUser;
+        return savedUser;
     }
 
     // ============================================
@@ -237,7 +243,7 @@ public class UserService {
 
         User user = getUserById(userId);
 
-        userRepository.remove(userId);
+        userRepository.deleteById(userId);
 
         logger.info("User deleted: {} | Name: '{}'", userId, user.getName());
     }
@@ -253,7 +259,7 @@ public class UserService {
      * @return true si existe, false en caso contrario
      */
     public boolean existsById(String userId) {
-        boolean exists = userRepository.containsKey(userId);
+        boolean exists = userRepository.existsById(userId);
         logger.debug("User {} exists: {}", userId, exists);
         return exists;
     }
@@ -268,7 +274,7 @@ public class UserService {
         if (email == null)
             return false;
 
-        boolean taken = userRepository.values().stream()
+        boolean taken = userRepository.findAll().stream()
                 .anyMatch(u -> email.equals(u.getEmail()));
 
         logger.debug("Email '{}' is taken: {}", email, taken);
@@ -289,8 +295,7 @@ public class UserService {
         if (username == null)
             return false;
 
-        boolean taken = userRepository.values().stream()
-                .anyMatch(u -> username.equals(u.getUsername()));
+        boolean taken = userRepository.existsByUsername(username);
 
         logger.debug("Username '{}' is taken: {}", username, taken);
         return taken;
@@ -302,7 +307,7 @@ public class UserService {
      * @return Cantidad total de usuarios
      */
     public int getTotalUsers() {
-        int total = userRepository.size();
+        int total = (int) userRepository.count();
         logger.debug("Total users in system: {}", total);
         return total;
     }

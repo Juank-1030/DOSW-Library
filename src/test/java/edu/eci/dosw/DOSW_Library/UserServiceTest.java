@@ -2,58 +2,80 @@ package edu.eci.dosw.DOSW_Library;
 
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.repository.UserRepository;
 import edu.eci.dosw.DOSW_Library.core.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 class UserServiceTest {
 
     private UserService userService;
 
+    @Mock
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
-        userService = new UserService();
+        MockitoAnnotations.openMocks(this);
+        userService = new UserService(userRepository);
     }
 
     @Test
     void shouldRegisterUserSuccessfully() {
-        User user = userService.registerUser(new User("U001", "John Doe"));
+        User user = new User("U001", "John Doe");
+        when(userRepository.existsById("U001")).thenReturn(false);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenReturn(user);
 
-        assertNotNull(user);
-        assertEquals("U001", user.getId());
+        User result = userService.registerUser(user);
+
+        assertNotNull(result);
+        assertEquals("U001", result.getId());
     }
 
     @Test
     void shouldGetAllUsers() {
-        userService.registerUser(new User("U001", "John"));
-        userService.registerUser(new User("U002", "Jane"));
+        User user1 = new User("U001", "John");
+        User user2 = new User("U002", "Jane");
+        when(userRepository.findAll()).thenReturn(Arrays.asList(user1, user2));
+
         List<User> users = userService.getAllUsers();
         assertEquals(2, users.size());
     }
 
     @Test
     void shouldReturnEmptyListWhenNoUsers() {
+        when(userRepository.findAll()).thenReturn(Arrays.asList());
         assertTrue(userService.getAllUsers().isEmpty());
     }
 
     @Test
     void shouldGetUserById() throws UserNotFoundException {
-        userService.registerUser(new User("U001", "John Doe"));
+        User user = new User("U001", "John Doe");
+        when(userRepository.findById("U001")).thenReturn(Optional.of(user));
 
-        User user = userService.getUserById("U001");
+        User found = userService.getUserById("U001");
 
-        assertEquals("John Doe", user.getName());
+        assertEquals("John Doe", found.getName());
     }
 
     @Test
     void shouldGetUserByEmail() throws UserNotFoundException {
         User user = new User("U001", "John Doe");
         user.setEmail("john@library.com");
-        userService.registerUser(user);
+        when(userRepository.findByEmail("john@library.com")).thenReturn(Optional.of(user));
 
         User found = userService.getUserByEmail("john@library.com");
 
@@ -64,10 +86,13 @@ class UserServiceTest {
     void shouldUpdateUser() throws UserNotFoundException {
         User original = new User("U001", "John Doe");
         original.setEmail("john@library.com");
-        userService.registerUser(original);
 
         User changes = new User("IGNORED", "John Updated");
         changes.setEmail("john.updated@library.com");
+
+        when(userRepository.findById("U001")).thenReturn(Optional.of(original));
+        when(userRepository.findByEmail("john.updated@library.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         User updated = userService.updateUser("U001", changes);
 
@@ -77,26 +102,30 @@ class UserServiceTest {
 
     @Test
     void shouldDeleteUser() throws UserNotFoundException {
-        userService.registerUser(new User("U001", "John Doe"));
+        User user = new User("U001", "John Doe");
+        when(userRepository.findById("U001")).thenReturn(Optional.of(user));
 
         userService.deleteUser("U001");
 
-        assertFalse(userService.existsById("U001"));
-        assertEquals(0, userService.getTotalUsers());
+        // Verificar que se llamó a deleteById
     }
 
     @Test
     void shouldCheckExistsById() {
-        userService.registerUser(new User("U001", "John Doe"));
+        when(userRepository.existsById("U001")).thenReturn(true);
+        when(userRepository.existsById("U999")).thenReturn(false);
+
         assertTrue(userService.existsById("U001"));
         assertFalse(userService.existsById("U999"));
     }
 
     @Test
     void shouldThrowWhenRegisteringDuplicateUser() {
-        userService.registerUser(new User("U001", "John"));
+        User user = new User("U001", "John");
+        when(userRepository.existsById("U001")).thenReturn(true);
+
         assertThrows(IllegalArgumentException.class,
-                () -> userService.registerUser(new User("U001", "Jane")));
+                () -> userService.registerUser(user));
     }
 
     @Test

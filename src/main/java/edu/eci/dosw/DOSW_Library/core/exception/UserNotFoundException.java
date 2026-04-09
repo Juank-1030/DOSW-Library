@@ -59,7 +59,7 @@ public class UserNotFoundException extends Exception {
      * 
      * @param message Descripción del error
      */
-    private UserNotFoundException(String message) {
+    public UserNotFoundException(String message) {
         super(message);
     }
 

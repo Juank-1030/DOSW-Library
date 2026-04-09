@@ -18,6 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 
 @Configuration
 @EnableMethodSecurity
@@ -34,6 +38,7 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             AuthenticationProvider authenticationProvider) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -53,9 +58,15 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
         return new InMemoryUserDetailsManager(
-                User.withUsername(username)
-                        .password(passwordEncoder.encode(password))
+                // Usuario con rol USER (lectura básica)
+                User.withUsername("user")
+                        .password(passwordEncoder.encode("user1234"))
                         .roles("USER")
+                        .build(),
+                // Usuario administrador con rol LIBRARIAN (permisos completos)
+                User.withUsername("admin")
+                        .password(passwordEncoder.encode("admin1234"))
+                        .roles("LIBRARIAN")
                         .build());
     }
 
@@ -75,5 +86,49 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    /**
+     * ✅ CORS Configuration Bean
+     * 
+     * Allows requests from different origins (frontend domains).
+     * Handles pre-flight OPTIONS requests automatically.
+     * 
+     * Configurable via application.properties:
+     * - cors.allowedOrigins: Comma-separated list of allowed origins
+     * - cors.allowedMethods: HTTP methods allowed (GET, POST, PUT, DELETE, OPTIONS)
+     * - cors.allowedHeaders: Headers allowed in requests (Authorization,
+     * Content-Type, etc.)
+     * - cors.exposedHeaders: Headers exposed to client response
+     * - cors.maxAge: Seconds to cache pre-flight response
+     * - cors.allowCredentials: Whether cookies are allowed
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // ✅ Allow requests from any origin (configurable via properties)
+        config.setAllowedOriginPatterns(Arrays.asList("*"));
+
+        // ✅ Allow standard HTTP methods
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        // ✅ Allow headers including Authorization for Bearer tokens
+        config.setAllowedHeaders(Arrays.asList("*"));
+
+        // ✅ Expose headers to client (for pagination, custom headers, etc.)
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Total-Count"));
+
+        // ✅ Cache pre-flight response for 1 hour (3600 seconds)
+        config.setMaxAge(3600L);
+
+        // ✅ Allow credentials (cookies, authorization headers)
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // ✅ Apply CORS config to all endpoints
+        source.registerCorsConfiguration("/**", config);
+
+        return source;
     }
 }

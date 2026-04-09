@@ -4,8 +4,9 @@ import edu.eci.dosw.DOSW_Library.controller.dto.CreateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UpdateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UserDTO;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.model.UserRole;
+import edu.eci.dosw.DOSW_Library.core.model.UserStatus;
 import edu.eci.dosw.DOSW_Library.persistence.entity.UserEntity;
-import edu.eci.dosw.DOSW_Library.persistence.entity.UserRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -49,7 +50,8 @@ public class UserPersistenceMapper {
                 .email(entity.getEmail())
                 .username(entity.getUsername())
                 .password(entity.getPassword())
-                .role(entity.getRole().name())
+                .role(UserRole.valueOf(entity.getRole().name()))
+                .status(entity.getStatus() != null ? UserStatus.valueOf(entity.getStatus().name()) : UserStatus.ACTIVE)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -66,7 +68,10 @@ public class UserPersistenceMapper {
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .password(user.getPassword())
-                .role(UserRole.valueOf(user.getRole()))
+                .role(edu.eci.dosw.DOSW_Library.persistence.entity.UserRole.valueOf(user.getRole().name()))
+                .status(user.getStatus() != null
+                        ? edu.eci.dosw.DOSW_Library.persistence.entity.UserStatus.valueOf(user.getStatus().name())
+                        : null)
                 .build();
     }
 
@@ -138,7 +143,7 @@ public class UserPersistenceMapper {
                 .email(createDTO.getEmail())
                 .username(createDTO.getUsername())
                 .password(createDTO.getPassword())
-                .role(createDTO.getRole() != null ? createDTO.getRole() : "USUARIO")
+                .role(createDTO.getRole() != null ? UserRole.valueOf(createDTO.getRole()) : UserRole.USER)
                 .build();
 
         logger.info("User entity created from DTO | ID: {} | Username: {} | Role: {}",

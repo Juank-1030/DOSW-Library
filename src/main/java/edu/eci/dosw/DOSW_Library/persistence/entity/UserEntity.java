@@ -88,6 +88,19 @@ public class UserEntity {
     private UserRole role;
 
     /**
+     * Estado del usuario (ENUM persistido como STRING)
+     * NUEVO: Controla si el usuario puede realizar operaciones
+     * 
+     * Valores posibles:
+     * - ACTIVE: Usuario activo y disponible para préstamos
+     * - SUSPENDED: Suspendido temporalmente (límite de préstamos excedido)
+     * - BLOCKED: Bloqueado permanentemente (decisión del bibliotecario)
+     */
+    @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
+
+    /**
      * Fecha de creacion del registro
      */
     @Column(nullable = false, updatable = false)

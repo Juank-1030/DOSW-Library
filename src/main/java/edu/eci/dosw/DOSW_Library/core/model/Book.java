@@ -1,11 +1,15 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -15,16 +19,20 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = "loans")
 @EqualsAndHashCode(of = "id")
 @Entity
-@Table(name = "books")
+@Table(name = "books", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "isbn", name = "uk_books_isbn")
+})
 public class Book {
     @Id
     private String id;
@@ -34,6 +42,12 @@ public class Book {
 
     @Column(nullable = false)
     private String author;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String isbn;
+
+    @Column(length = 500)
+    private String description;
 
     @Column(nullable = false)
     private Integer copies;
@@ -50,6 +64,13 @@ public class Book {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * Relación 1:N con Loan (un libro puede tener muchos préstamos)
+     * orphanRemoval=true: elimina préstamos huérfanos cuando se elimina el libro
+     */
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Loan> loans = new ArrayList<>();
 
     public Book(String id, String title, String author) {
         this.id = id;

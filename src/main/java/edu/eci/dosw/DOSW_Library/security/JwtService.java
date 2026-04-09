@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +13,10 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class JwtService {
@@ -28,6 +31,10 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public List<String> extractRoles(String token) {
+        return extractClaim(token, claims -> claims.get("roles", List.class));
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -38,9 +45,17 @@ public class JwtService {
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        // Extraer roles del UserDetails y agregarlos a los claims
+        Map<String, Object> allClaims = new HashMap<>(extraClaims);
+        List<String> roles = userDetails.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        allClaims.put("roles", roles);
+
         Instant now = Instant.now();
         return Jwts.builder()
-                .claims(extraClaims)
+                .claims(allClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(jwtExpirationMs)))
@@ -68,5 +83,33 @@ public class JwtService {
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    /**
+     * Retorna el tiempo de expiración del token en milisegundos.
+     * 
+     * <p>
+     * <b>Configuración:</b> Via `security.jwt.expiration-ms` en
+     * application.properties
+     * </p>
+     * 
+     * <p>
+     * <b>Valor por defecto:</b> 3600000 ms = 1 hora
+     * </p>
+     * 
+     * @return Tiempo de expiración en ms
+     */
+    public Long getExpirationTime() {
+        return jwtExpirationMs;
+    }
+
+    /**
+     * Extrae la fecha de expiración del token JWT.
+     * 
+     * @param token Token JWT
+     * @return Fecha de expiración
+     */
+    public Date getExpirationDate(String token) {
+        return extractClaim(token, Claims::getExpiration);
     }
 }
