@@ -5,6 +5,7 @@ import edu.eci.dosw.DOSW_Library.controller.dto.LoginRequest;
 import edu.eci.dosw.DOSW_Library.controller.dto.RegisterRequest;
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.model.UserRole;
 import edu.eci.dosw.DOSW_Library.core.repository.UserRepository;
 import edu.eci.dosw.DOSW_Library.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -118,7 +119,8 @@ public class AuthService {
                 }
 
                 // Determinar el rol (USER por defecto)
-                String role = registerRequest.getRole() != null ? registerRequest.getRole() : "USER";
+                String roleStr = registerRequest.getRole() != null ? registerRequest.getRole() : "USER";
+                UserRole role = UserRole.valueOf(roleStr);
 
                 // Crear nuevo usuario
                 User newUser = User.builder()
@@ -141,10 +143,9 @@ public class AuthService {
                 return AuthResponse.builder()
                                 .userId(savedUser.getId())
                                 .username(savedUser.getUsername())
-                                .role(savedUser.getRole())
+                                .role(savedUser.getRole().name())
                                 .status("ACTIVE")
                                 .expiresIn(jwtService.getExpirationTime())
-                                .message("User registered successfully. You can now login.")
                                 .build();
         }
 

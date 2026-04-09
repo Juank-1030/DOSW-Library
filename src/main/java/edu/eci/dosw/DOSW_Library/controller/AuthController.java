@@ -292,9 +292,7 @@ public class AuthController {
                                         registerRequest.getUsername(), e.getMessage());
                         return ResponseEntity
                                         .status(HttpStatus.BAD_REQUEST)
-                                        .body(AuthResponse.builder()
-                                                        .message(e.getMessage())
-                                                        .build());
+                                        .build();
 
                 } catch (Exception e) {
                         logger.error("Error during registration for user: {} | Error: {}",
