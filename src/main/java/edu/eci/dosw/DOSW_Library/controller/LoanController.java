@@ -3,7 +3,7 @@ package edu.eci.dosw.DOSW_Library.controller;
 import edu.eci.dosw.DOSW_Library.controller.dto.CreateLoanDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.LoanDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.LoanSummaryDTO;
-import edu.eci.dosw.DOSW_Library.persistence.mapper.LoanPersistenceMapper;
+import edu.eci.dosw.DOSW_Library.persistence.relational.mapper.LoanPersistenceMapper;
 import edu.eci.dosw.DOSW_Library.core.exception.BookNotAvailableException;
 import edu.eci.dosw.DOSW_Library.core.exception.LoanLimitExceededException;
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;

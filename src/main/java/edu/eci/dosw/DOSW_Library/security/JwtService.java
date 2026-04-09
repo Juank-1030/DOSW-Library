@@ -32,7 +32,9 @@ public class JwtService {
     }
 
     public List<String> extractRoles(String token) {
-        return extractClaim(token, claims -> claims.get("roles", List.class));
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) extractClaim(token, claims -> claims.get("roles", List.class));
+        return roles;
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

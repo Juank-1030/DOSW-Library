@@ -70,6 +70,7 @@ public class Book {
      * orphanRemoval=true: elimina préstamos huérfanos cuando se elimina el libro
      */
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<Loan> loans = new ArrayList<>();
 
     public Book(String id, String title, String author) {

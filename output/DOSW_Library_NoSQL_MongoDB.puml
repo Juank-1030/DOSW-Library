@@ -1,0 +1,188 @@
+@startuml DOSW_Library_NoSQL_MongoDB
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBorderColor #333333
+skinparam shadowing false
+
+title DOSW Library - Modelo NoSQL (MongoDB)
+
+' =====================
+' COLECCIÓN: USERS
+' =====================
+
+class "COLECCIÓN: users" as UsersCollection <<MongoDB Collection>> {
+    db.users.insertOne({
+        _id: ObjectId("..."),
+        --
+        id: "USER-001",
+        name: "Juan Pérez",
+        email: "juan@example.com",
+        username: "juan_perez",
+        role: "USUARIO",
+        --
+        EMBEBIDO - security {
+            passwordHash: "$2a$10$...",
+            lastLogin: ISODate("2026-04-01T10:30:00Z"),
+            loginAttempts: 0
+        },
+        --
+        timestamps {
+            createdAt: ISODate("2026-01-15T08:00:00Z"),
+            updatedAt: ISODate("2026-04-01T10:30:00Z")
+        },
+        --
+        ÍNDICES:
+        - db.users.createIndex({ email: 1 })
+        - db.users.createIndex({ username: 1 })
+    })
+}
+
+' =====================
+' COLECCIÓN: books
+' =====================
+
+class "COLECCIÓN: books" as BooksCollection <<MongoDB Collection>> {
+    db.books.insertOne({
+        _id: ObjectId("..."),
+        --
+        id: "BOOK-001",
+        title: "Clean Code",
+        author: "Robert C. Martin",
+        --
+        EMBEBIDO - inventory {
+            total: 5,
+            available: 3,
+            loaned: 2
+        },
+        --
+        EMBEBIDO - metadata {
+            isbn: "978-0132350884",
+            pages: 464,
+            language: "EN",
+            publisher: "Prentice Hall"
+        },
+        --
+        EMBEBIDO - categories [
+            "Programming",
+            "Software Design",
+            "Best Practices"
+        ],
+        --
+        timestamps {
+            createdAt: ISODate("2026-01-10T08:00:00Z"),
+            updatedAt: ISODate("2026-04-01T15:45:00Z")
+        },
+        --
+        ÍNDICES:
+        - db.books.createIndex({ title: 1 })
+        - db.books.createIndex({ author: 1 })
+        - db.books.createIndex({ categories: 1 })
+    })
+}
+
+' =====================
+' COLECCIÓN: loans
+' =====================
+
+class "COLECCIÓN: loans" as LoansCollection <<MongoDB Collection>> {
+    db.loans.insertOne({
+        _id: ObjectId("..."),
+        --
+        id: "LOAN-001",
+        --
+        REFERENCIADO: userRef {
+            userId: "USER-001",
+            userName: "Juan Pérez",
+            userEmail: "juan@example.com"
+        },
+        --
+        REFERENCIADO: bookRef {
+            bookId: "BOOK-001",
+            bookTitle: "Clean Code",
+            bookAuthor: "Robert C. Martin"
+        },
+        --
+        loanDate: ISODate("2026-03-25T14:00:00Z"),
+        dueDate: ISODate("2026-04-08T23:59:59Z"),
+        returnDate: null,
+        status: "ACTIVE",
+        --
+        EMBEBIDO - history [
+            {
+                status: "ACTIVE",
+                changedAt: ISODate("2026-03-25T14:00:00Z"),
+                reason: "Préstamo creado"
+            }
+        ],
+        --
+        timestamps {
+            createdAt: ISODate("2026-03-25T14:00:00Z"),
+            updatedAt: ISODate("2026-04-01T10:30:00Z")
+        },
+        --
+        ÍNDICES:
+        - db.loans.createIndex({ "userRef.userId": 1 })
+        - db.loans.createIndex({ "bookRef.bookId": 1 })
+        - db.loans.createIndex({ status: 1 })
+        - db.loans.createIndex({ dueDate: 1 })
+    })
+}
+
+' =====================
+' ESTRATEGIA DE DISEÑO
+' =====================
+
+note right of UsersCollection
+**EMBEBIDO (security):**
+Datos de autenticación 
+siempre se consultan con usuario.
+Mejora rendimiento de login.
+Sin necesidad de joins.
+end note
+
+note right of BooksCollection
+**EMBEBIDO (inventory, metadata):**
+Información relacionada
+semánticamente con el libro.
+Consultas frecuentes sin joins.
+Actualización atómica.
+end note
+
+note right of LoansCollection
+**REFERENCIADO (userRef, bookRef):**
+Información desnormalizada
+para lecturas rápidas.
+Mantiene consistencia denormalizando
+el nombre y email del usuario
+y título/autor del libro.
+
+**EMBEBIDO (history):**
+Línea de tiempo del préstamo
+dentro del mismo documento.
+Evita join a colección separada.
+end note
+
+' =====================
+' COMPARATIVA
+' =====================
+
+note bottom of UsersCollection
+TRANSFORMACIÓN RELACIONAL → NOSQL:
+┌─────────────────────────────────────┐
+│ RELACIONAL (3FN)                    │
+├─────────────────────────────────────┤
+│ • users table                       │
+│ • JOIN con security info (separado) │
+│ • Consultas múltiples               │
+└─────────────────────────────────────┘
+              ↓↓↓
+┌─────────────────────────────────────┐
+│ NOSQL (MongoDB)                     │
+├─────────────────────────────────────┤
+│ • users collection                  │
+│ • security EMBEBIDO                 │
+│ • Una consulta, un documento        │
+└─────────────────────────────────────┘
+end note
+
+@enduml

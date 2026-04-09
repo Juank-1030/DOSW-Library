@@ -1,4 +1,4 @@
-package edu.eci.dosw.DOSW_Library.persistence.entity;
+package edu.eci.dosw.DOSW_Library.persistence.relational.entity;
 
 /**
  * Enum UserRole - Roles de usuario persistidos en BD

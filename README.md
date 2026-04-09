@@ -1729,7 +1729,7 @@ private final BookMapper bookMapper;
 public BookController(BookService bookService, BookMapper bookMapper) { ... }
 
 // ✅ AHORA
-import edu.eci.dosw.DOSW_Library.persistence.mapper.BookPersistenceMapper;
+import edu.eci.dosw.DOSW_Library.persistence.relational.mapper.BookPersistenceMapper;
 private final BookPersistenceMapper bookMapper;
 public BookController(BookService bookService, BookPersistenceMapper bookMapper) { ... }
 ```
