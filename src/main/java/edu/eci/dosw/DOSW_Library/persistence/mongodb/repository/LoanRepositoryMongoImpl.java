@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Implementación MongoDB de LoanRepository.
@@ -45,19 +44,6 @@ public class LoanRepositoryMongoImpl implements LoanRepository {
     public Loan save(Loan loan) {
         return mapper.toDomain(
                 repository.save(mapper.toDocument(loan)));
-    }
-
-    /**
-     * Método auxiliar para mapear listas de documentos a modelos de dominio.
-     * Utiliza Stream API para procesamiento funcional eficiente.
-     *
-     * @param documents lista de LoanDocument
-     * @return lista de Loan mapeados
-     */
-    private List<Loan> mapDocumentsToDomain(List<?> documents) {
-        return documents.stream()
-                .map(doc -> mapper.toDomain((com.eci.dosw.DOSW_Library.persistence.mongodb.document.LoanDocument) doc))
-                .toList();
     }
 
     @Override
