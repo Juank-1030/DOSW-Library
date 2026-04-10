@@ -3,7 +3,7 @@ package edu.eci.dosw.DOSW_Library.controller;
 import edu.eci.dosw.DOSW_Library.controller.dto.CreateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UpdateUserDTO;
 import edu.eci.dosw.DOSW_Library.controller.dto.UserDTO;
-import edu.eci.dosw.DOSW_Library.persistence.mapper.UserPersistenceMapper;
+import edu.eci.dosw.DOSW_Library.persistence.relational.mapper.UserPersistenceMapper;
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.service.UserService;

@@ -1,96 +1,180 @@
 package edu.eci.dosw.DOSW_Library.persistence.repository;
 
 import edu.eci.dosw.DOSW_Library.core.model.Loan;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositorio JPA para Loan
- * 
- * IMPORTANTE: Loan es una entidad JPA (@Entity en core.model)
- * No usamos LoanEntity - el modelo de dominio ES la entidad JPA
- * 
- * Proporciona:
- * - CRUD automatico heredado de JpaRepository
- * - Query methods para buscar prestamos por usuario, libro, estado
- * - Consultas JPQL personalizadas para reportes y validaciones
- * 
- * @author DOSW-Library Team
+ * Interfaz genérica para operaciones de persistencia sobre Loan.
+ * Define un contrato que puede ser implementado por diferentes fuentes de datos
+ * (MongoDB, JPA/PostgreSQL, etc.)
+ *
+ * Esta es la interfaz de abstracción de persistencia.
+ * Las implementaciones concretas (MongoDB, JPA) deben implementar estos
+ * métodos.
  */
-@Repository
-public interface LoanRepository extends JpaRepository<Loan, String> {
+public interface LoanRepository {
 
     /**
-     * Obtener prestamos activos de un usuario
-     * 
-     * @param userId identificador del usuario
-     * @return lista de prestamos vigentes del usuario
+     * Guarda un nuevo préstamo o actualiza uno existente.
+     *
+     * @param loan el préstamo a guardar
+     * @return el préstamo guardado
      */
-    @Query("SELECT l FROM Loan l WHERE l.user.id = :userId AND l.status = 'ACTIVE'")
-    List<Loan> findActiveLoansForUser(@Param("userId") String userId);
+    Loan save(Loan loan);
 
     /**
-     * Contar prestamos activos de un usuario
-     * Util para validar limite de prestamos simultaneos
-     * 
-     * @param userId identificador del usuario
-     * @return cantidad de prestamos activos
+     * Guarda múltiples préstamos en lote.
+     *
+     * @param loans lista de préstamos a guardar
+     * @return lista de préstamos guardados
      */
-    @Query("SELECT COUNT(l) FROM Loan l WHERE l.user.id = :userId AND l.status = 'ACTIVE'")
-    Integer countActiveLoansForUser(@Param("userId") String userId);
+    List<Loan> saveAll(List<Loan> loans);
 
     /**
-     * Verificar si un usuario tiene prestado un libro especifico (aun activo)
-     * 
-     * @param userId identificador del usuario
-     * @param bookId identificador del libro
-     * @return true si tiene un prestamo activo de ese libro
+     * Busca un préstamo por su ID.
+     *
+     * @param id el identificador del préstamo
+     * @return Optional con el préstamo si existe
      */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM Loan l WHERE l.user.id = :userId AND l.book.id = :bookId AND l.status = 'ACTIVE'")
-    boolean hasActiveLoan(@Param("userId") String userId, @Param("bookId") String bookId);
+    Optional<Loan> findById(String id);
 
     /**
-     * Obtener prestamos vencidos (atrasados)
-     * 
-     * @param now fecha/hora actual
-     * @return lista de prestamos con dueDate < ahora y aun no devueltos
+     * Obtiene todos los préstamos.
+     *
+     * @return lista de todos los préstamos
      */
-    @Query("SELECT l FROM Loan l WHERE l.dueDate < :now AND l.status = 'ACTIVE'")
-    List<Loan> findOverdueLoans(@Param("now") LocalDateTime now);
+    List<Loan> findAll();
 
     /**
-     * Contar prestamos atrasados totales en el sistema
-     * 
-     * @param now fecha/hora actual
-     * @return cantidad de prestamos en mora
+     * Busca todos los préstamos de un usuario específico.
+     *
+     * @param userId el ID del usuario
+     * @return lista de préstamos del usuario
      */
-    @Query("SELECT COUNT(l) FROM Loan l WHERE l.dueDate < :now AND l.status = 'ACTIVE'")
-    Integer countOverdueLoans(@Param("now") LocalDateTime now);
+    List<Loan> findByUserId(String userId);
 
     /**
-     * Obtener todos los prestamos (activos y devueltos) de un usuario
-     * 
-     * @param userId identificador del usuario
-     * @return lista completa de prestamos del usuario, ordenada por fecha
-     *         descendente
+     * Busca préstamos activos de un usuario.
+     *
+     * @param userId el ID del usuario
+     * @param status el estado del préstamo
+     * @return lista de préstamos con ese estado
      */
-    @Query("SELECT l FROM Loan l WHERE l.user.id = :userId ORDER BY l.loanDate DESC")
-    List<Loan> findAllLoansForUser(@Param("userId") String userId);
+    List<Loan> findByUserIdAndStatus(String userId, String status);
 
     /**
-     * Obtener el ultimo prestamo de un usuario para un libro especifico
-     * Util para historial y validaciones
-     * 
-     * @param userId identificador del usuario
-     * @param bookId identificador del libro
-     * @return Optional del prestamo mas reciente
+     * Busca todos los préstamos de un libro específico.
+     *
+     * @param bookId el ID del libro
+     * @return lista de préstamos del libro
      */
-    @Query(value = "SELECT l FROM Loan l WHERE l.user.id = :userId AND l.book.id = :bookId ORDER BY l.loanDate DESC LIMIT 1")
-    Optional<Loan> findLastLoanForUserAndBook(@Param("userId") String userId, @Param("bookId") String bookId);
+    List<Loan> findByBookId(String bookId);
+
+    /**
+     * Busca préstamos activos de un libro.
+     *
+     * @param bookId el ID del libro
+     * @param status el estado del préstamo
+     * @return lista de préstamos con ese estado
+     */
+    List<Loan> findByBookIdAndStatus(String bookId, String status);
+
+    /**
+     * Busca todos los préstamos con un estado específico.
+     *
+     * @param status el estado a buscar
+     * @return lista de préstamos con ese estado
+     */
+    List<Loan> findByStatus(String status);
+
+    /**
+     * Busca los préstamos vencidos (dueDate en el pasado, estado ACTIVE).
+     *
+     * @param now la fecha/hora actual
+     * @return lista de préstamos vencidos
+     */
+    List<Loan> findOverdueLoans(LocalDateTime now);
+
+    /**
+     * Busca los préstamos próximos a vencer (dentro de N días).
+     *
+     * @param startDate la fecha actual
+     * @param endDate   la fecha límite
+     * @return lista de préstamos próximos a vencer
+     */
+    List<Loan> findUpcomingDueLoans(LocalDateTime startDate, LocalDateTime endDate);
+
+    /**
+     * Busca los préstamos en rango de fechas.
+     *
+     * @param startDate fecha inicio del rango
+     * @param endDate   fecha fin del rango
+     * @return lista de préstamos en el rango
+     */
+    List<Loan> findLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
+
+    /**
+     * Busca el préstamo más reciente de un usuario y libro específicos.
+     *
+     * @param userId el ID del usuario
+     * @param bookId el ID del libro
+     * @return Optional con el préstamo más reciente
+     */
+    Optional<Loan> findMostRecentLoanByUserAndBook(String userId, String bookId);
+
+    /**
+     * Cuenta los préstamos activos de un usuario.
+     *
+     * @param userId el ID del usuario
+     * @param status el estado a contar
+     * @return cantidad de préstamos
+     */
+    long countByUserIdAndStatus(String userId, String status);
+
+    /**
+     * Busca todos los préstamos devueltos en un rango de fechas.
+     *
+     * @param startDate fecha inicio
+     * @param endDate   fecha fin
+     * @return lista de préstamos devueltos
+     */
+    List<Loan> findReturnedLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
+
+    /**
+     * Elimina un préstamo por su ID.
+     *
+     * @param id el identificador del préstamo a eliminar
+     */
+    void deleteById(String id);
+
+    /**
+     * Elimina un préstamo.
+     *
+     * @param loan el préstamo a eliminar
+     */
+    void delete(Loan loan);
+
+    /**
+     * Elimina todos los préstamos.
+     */
+    void deleteAll();
+
+    /**
+     * Cuenta la cantidad total de préstamos.
+     *
+     * @return cantidad de préstamos
+     */
+    long count();
+
+    /**
+     * Verifica si existe un préstamo con el ID especificado.
+     *
+     * @param id el identificador a verificar
+     * @return true si existe, false en caso contrario
+     */
+    boolean existsById(String id);
+
 }

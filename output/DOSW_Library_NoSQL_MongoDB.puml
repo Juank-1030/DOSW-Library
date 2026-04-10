@@ -1,0 +1,71 @@
+@startuml DOSW_Library_NoSQL_MongoDB
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+skinparam arrowColor #333333
+skinparam shadowing false
+
+class Users {
+    _id : ObjectId
+    id : String
+    name : String
+    email : String
+    username : String
+    passwordHash : String
+    role : String
+    permissions : String[]
+    department : String
+    membershipLevel : String
+    maxLoans : int
+    lastLogin : Date
+    loginAttempts : int
+    createdAt : Date
+    updatedAt : Date
+}
+
+class Books {
+    _id : ObjectId
+    id : String
+    title : String
+    author : String
+    isbn : String
+    pages : int
+    language : String
+    publisher : String
+    total : int
+    available : int
+    loaned : int
+    categories : String[]
+    createdAt : Date
+    updatedAt : Date
+}
+
+class Loans {
+    _id : ObjectId
+    id : String
+    userId : String
+    userName : String
+    userRole : String
+    bookId : String
+    bookTitle : String
+    bookAuthor : String
+    loanDate : Date
+    dueDate : Date
+    returnDate : Date
+    status : String
+    createdAt : Date
+    updatedAt : Date
+}
+
+class LoanHistory {
+    status : String
+    changedAt : Date
+    reason : String
+}
+
+Loans --> Users : references
+Loans --> Books : references
+Loans *-- LoanHistory : embeds
+
+@enduml

@@ -2,7 +2,7 @@ package edu.eci.dosw.DOSW_Library;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
  * Aplicación principal de DOSW-Library
@@ -12,12 +12,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * </p>
  * <ul>
  * <li>@SpringBootApplication - Auto-configuración de Spring Boot</li>
- * <li>@EnableJpaRepositories - Habilita escaneo explícito de repositorios
- * JPA</li>
+ * <li>@EnableMongoRepositories - Habilita escaneo de repositorios MongoDB</li>
  * </ul>
  */
 @SpringBootApplication
-@EnableJpaRepositories(basePackages = "edu.eci.dosw.DOSW_Library.core.repository")
+@EnableMongoRepositories(basePackages = "edu.eci.dosw.DOSW_Library.persistence.mongodb.repository")
 public class DoswLibraryApplication {
 
 	public static void main(String[] args) {

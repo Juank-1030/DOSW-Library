@@ -1,4 +1,4 @@
-package edu.eci.dosw.DOSW_Library.persistence.entity;
+package edu.eci.dosw.DOSW_Library.persistence.relational.entity;
 
 /**
  * Enum que define los estados posibles de un usuario en la capa de

@@ -11,7 +11,6 @@ import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.repository.LoanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -78,7 +77,7 @@ public class LoanService {
      */
     private static final int MAX_ACTIVE_LOANS = 3;
 
-    // Inyección del repositorio de Spring Data JPA
+    // Inyección del repositorio (interfaz genérica agnóstica de persistencia)
     private final LoanRepository loanRepository;
 
     // Dependencias de otros servicios
@@ -87,12 +86,13 @@ public class LoanService {
 
     /**
      * Constructor con inyección de dependencias.
+     * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param loanRepository Repositorio de préstamos gerenciado por Spring Data JPA
+     * @param loanRepository Repositorio genérico de préstamos (implementación:
+     *                       MongoDB o JPA)
      * @param bookService    Servicio de libros
      * @param userService    Servicio de usuarios
      */
-    @Autowired
     public LoanService(LoanRepository loanRepository, BookService bookService, UserService userService) {
         this.loanRepository = loanRepository;
         this.bookService = bookService;

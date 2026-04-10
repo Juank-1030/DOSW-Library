@@ -1,60 +1,146 @@
 package edu.eci.dosw.DOSW_Library.persistence.repository;
 
 import edu.eci.dosw.DOSW_Library.core.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositorio JPA para User
- * 
- * IMPORTANTE: User es una entidad JPA (@Entity en core.model)
- * No usamos UserEntity - el modelo de dominio ES la entidad JPA
- * 
- * Proporciona:
- * - CRUD automatico heredado de JpaRepository
- * - Query methods para buscar por username, email, role
- * - Consultas JPQL personalizadas
- * 
- * @author DOSW-Library Team
+ * Interfaz genérica para operaciones de persistencia sobre User.
+ * Define un contrato que puede ser implementado por diferentes fuentes de datos
+ * (MongoDB, JPA/PostgreSQL, etc.)
+ *
+ * Esta es la interfaz de abstracción de persistencia.
+ * Las implementaciones concretas (MongoDB, JPA) deben implementar estos
+ * métodos.
  */
-@Repository
-public interface UserRepository extends JpaRepository<User, String> {
+public interface UserRepository {
 
     /**
-     * Query method automatico: SELECT * FROM users WHERE username = ?
-     * IMPORTANTE: username es UNIQUE, por eso retorna Optional
-     * 
-     * Requerido para login: obtener usuario por username sin saber su ID
+     * Guarda un nuevo usuario o actualiza uno existente.
+     *
+     * @param user el usuario a guardar
+     * @return el usuario guardado
      */
-    Optional<User> findByUsername(String username);
+    User save(User user);
 
     /**
-     * Query method automatico: SELECT * FROM users WHERE email = ?
-     * Email es UNIQUE, por eso retorna Optional
+     * Guarda múltiples usuarios en lote.
+     *
+     * @param users lista de usuarios a guardar
+     * @return lista de usuarios guardados
+     */
+    List<User> saveAll(List<User> users);
+
+    /**
+     * Busca un usuario por su ID.
+     *
+     * @param id el identificador del usuario
+     * @return Optional con el usuario si existe
+     */
+    Optional<User> findById(String id);
+
+    /**
+     * Obtiene todos los usuarios.
+     *
+     * @return lista de todos los usuarios
+     */
+    List<User> findAll();
+
+    /**
+     * Busca un usuario por su correo electrónico.
+     *
+     * @param email el correo del usuario
+     * @return Optional con el usuario si existe
      */
     Optional<User> findByEmail(String email);
 
     /**
-     * Consulta JPQL: verificar si existe un usuario con ese email
-     * Util para validar unicidad ANTES de inserciones
-     * 
-     * @param email email a verificar
-     * @return true si existe usuario con ese email
+     * Busca un usuario por su nombre de usuario.
+     *
+     * @param username el nombre de usuario
+     * @return Optional con el usuario si existe
      */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM User u WHERE u.email = :email")
-    boolean existsByEmail(@Param("email") String email);
+    Optional<User> findByUsername(String username);
 
     /**
-     * Consulta JPQL: verificar si existe un usuario con ese username
-     * Util para validar unicidad ANTES de inserciones
-     * 
-     * @param username username a verificar
-     * @return true si existe usuario con ese username
+     * Busca todos los usuarios con un rol específico.
+     *
+     * @param role el rol (USER, LIBRARIAN)
+     * @return lista de usuarios con ese rol
      */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM User u WHERE u.username = :username")
-    boolean existsByUsername(@Param("username") String username);
+    List<User> findByRole(String role);
+
+    /**
+     * Busca todos los bibliotecarios.
+     *
+     * @return lista de todos los usuarios con rol LIBRARIAN
+     */
+    List<User> findAllLibrarians();
+
+    /**
+     * Busca todos los usuarios regulares.
+     *
+     * @return lista de todos los usuarios con rol USER
+     */
+    List<User> findAllRegularUsers();
+
+    /**
+     * Busca usuarios con intentos de login fallidos (posible cuenta comprometida).
+     *
+     * @param attemptThreshold cantidad mínima de intentos
+     * @return lista de usuarios sospechosos
+     */
+    List<User> findSuspiciousAccounts(int attemptThreshold);
+
+    /**
+     * Verifica si un email ya existe.
+     *
+     * @param email el correo a validar
+     * @return true si el email ya existe
+     */
+    boolean existsByEmail(String email);
+
+    /**
+     * Verifica si un username ya existe.
+     *
+     * @param username el nombre de usuario a validar
+     * @return true si el username ya existe
+     */
+    boolean existsByUsername(String username);
+
+    /**
+     * Elimina un usuario por su ID.
+     *
+     * @param id el identificador del usuario a eliminar
+     */
+    void deleteById(String id);
+
+    /**
+     * Elimina un usuario.
+     *
+     * @param user el usuario a eliminar
+     */
+    void delete(User user);
+
+    /**
+     * Elimina todos los usuarios.
+     */
+    void deleteAll();
+
+    /**
+     * Cuenta la cantidad total de usuarios.
+     *
+     * @return cantidad de usuarios
+     */
+    long count();
+
+    /**
+     * Verifica si existe un usuario con el ID especificado.
+     *
+     * @param id el identificador a verificar
+     * @return true si existe, false en caso contrario
+     */
+    boolean existsById(String id);
+
 }

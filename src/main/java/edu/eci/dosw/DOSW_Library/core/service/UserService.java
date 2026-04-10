@@ -5,7 +5,6 @@ import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,15 +30,16 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-    // Inyección del repositorio de Spring Data JPA
+    // Inyección del repositorio (interfaz genérica agnóstica de persistencia)
     private final UserRepository userRepository;
 
     /**
      * Constructor con inyección de dependencias.
+     * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param userRepository Repositorio de usuarios gerenciado por Spring Data JPA
+     * @param userRepository Repositorio genérico de usuarios (implementación:
+     *                       MongoDB o JPA)
      */
-    @Autowired
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
         logger.info("UserService initialized with UserRepository");

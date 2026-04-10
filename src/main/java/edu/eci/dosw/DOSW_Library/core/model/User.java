@@ -102,6 +102,7 @@ public class User {
      * orphanRemoval=true: elimina préstamos huérfanos cuando se elimina el usuario
      */
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<Loan> loans = new ArrayList<>();
 
     public User(String id, String name) {

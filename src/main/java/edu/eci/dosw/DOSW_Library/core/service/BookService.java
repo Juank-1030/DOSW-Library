@@ -5,7 +5,6 @@ import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.repository.BookRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -58,15 +57,16 @@ public class BookService {
 
     private static final Logger logger = LoggerFactory.getLogger(BookService.class);
 
-    // Inyección del repositorio de Spring Data JPA
+    // Inyección del repositorio (interfaz genérica agnóstica de persistencia)
     private final BookRepository bookRepository;
 
     /**
      * Constructor con inyección de dependencias.
+     * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param bookRepository Repositorio de libros gerenciado por Spring Data JPA
+     * @param bookRepository Repositorio genérico de libros (implementación: MongoDB
+     *                       o JPA)
      */
-    @Autowired
     public BookService(BookRepository bookRepository) {
         this.bookRepository = bookRepository;
         logger.info("BookService initialized with BookRepository");
