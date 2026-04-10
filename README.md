@@ -60,6 +60,13 @@ Este documento esta pensado como referencia de arquitectura, guia de implementac
    - Desnormalización estratégica
    - Comparativa SQL vs NoSQL
 
+7.2. **[Documentos y Repositorios MongoDB](#documentos-y-repositorios-mongodb-)**
+   - UserDocument, BookDocument, LoanDocument
+   - LoanHistoryDocument (embebido)
+   - Estrategia HÍBRIDA (referenciado + embebido)
+   - UserRepository, BookRepository, LoanRepository
+   - Operaciones CRUD y consultas personalizadas
+
 8. **[Implementación JPA: Entidades con Anotaciones](#implementación-jpa-entidades-con-anotaciones-)**
    - User.java (Entidad de Usuarios)
    - Book.java (Entidad de Libros)
@@ -1199,6 +1206,380 @@ CHECK (
 -- Unicidad
 UNIQUE (email)                          -- Email único por usuario
 UNIQUE (username)                       -- Username único por usuario
+```
+
+---
+
+## Documentos y Repositorios MongoDB ✅
+
+**Ubicación:**
+- **Documentos:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/mongodb/document/`
+- **Repositorios:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/mongodb/repository/`
+
+### Documentos MongoDB (Entidades NoSQL)
+
+Los documentos MongoDB implementan la estrategia de desnormalización mostrada en el diagrama. Cada documento es independiente pero contiene referencias denormalizadas para optimizar consultas.
+
+#### UserDocument.java
+
+```java
+@Document(collection = "users")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserDocument {
+    @Id
+    private String id;
+    
+    private String name;
+    
+    @Indexed(unique = true)
+    private String email;
+    
+    @Indexed(unique = true)
+    private String username;
+    
+    private String passwordHash;
+    
+    @Indexed
+    private String role;  // USUARIO, BIBLIOTECARIO
+    
+    // Especialización: Bibliotecario
+    private List<String> permissions;
+    private String department;
+    
+    // Especialización: Usuario Regular
+    private String membershipLevel;
+    private Integer maxLoans;
+    
+    // Seguridad
+    private LocalDateTime lastLogin;
+    private Integer loginAttempts;
+    
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+
+**Índices:**
+- `email` (UNIQUE) → búsqueda rápida por email
+- `username` (UNIQUE) → validación de login
+- `role` → filtrado por tipo de usuario
+
+#### BookDocument.java
+
+```java
+@Document(collection = "books")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookDocument {
+    @Id
+    private String id;
+    
+    private String title;
+    private String author;
+    private String isbn;
+    private Integer pages;
+    private String language;
+    private String publisher;
+    private Double price;
+    
+    // Inventario
+    private Integer inventory;      // Total de copias
+    private Integer available;      // Copias disponibles
+    private Long totalLoans;        // Contador de préstamos históricos
+    
+    private List<String> category;
+    
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+
+**Índices:**
+- `title`, `author`, `category` → búsquedas de catálogo
+- `inventory` → consultas de disponibilidad
+
+#### LoanHistoryDocument.java
+
+```java
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoanHistoryDocument {
+    private String status;           // ACTIVE, RETURNED
+    private LocalDateTime changedAt;
+    private String reason;           // "Préstamo creado", "Devolución completada"
+}
+```
+
+**Nota:** Este documento está **EMBEBIDO** en el documento de Loan, NO es una colección separada.
+
+#### LoanDocument.java (ESTRATEGIA HÍBRIDA)
+
+```java
+@Document(collection = "loans")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@CompoundIndexes({
+    @CompoundIndex(name = "user_status_idx", def = "{'userRef.userId': 1, 'status': 1}"),
+    @CompoundIndex(name = "book_status_idx", def = "{'bookRef.bookId': 1, 'status': 1}"),
+    @CompoundIndex(name = "dueDate_idx", def = "{'dueDate': 1, 'status': 1}")
+})
+public class LoanDocument {
+    @Id
+    private String id;
+    
+    // REFERENCIADO: Datos denormalizados del usuario
+    private UserReference userRef;
+    
+    // REFERENCIADO: Datos denormalizados del libro
+    private BookReference bookRef;
+    
+    private LocalDateTime loanDate;
+    private LocalDateTime dueDate;
+    private LocalDateTime returnDate;
+    
+    private String status;  // ACTIVE, RETURNED
+    
+    // EMBEBIDO: Historial de cambios de estado
+    @Builder.Default
+    private List<LoanHistoryDocument> history = new ArrayList<>();
+    
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserReference {
+        private String userId;
+        private String userName;
+        private String userRole;
+    }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BookReference {
+        private String bookId;
+        private String bookTitle;
+        private String bookAuthor;
+    }
+}
+```
+
+**Índices Compuestos:**
+- `(userRef.userId, status)` → búsqueda rápida de préstamos activos por usuario
+- `(bookRef.bookId, status)` → búsqueda rápida de préstamos activos por libro
+- `(dueDate, status)` → detección de préstamos vencidos
+
+**Estrategia HÍBRIDA Explicada:**
+- **REFERENCIADO:** Los campos `userRef` y `bookRef` contienen datos denormalizados (userId, userName, userRole, bookId, bookTitle, bookAuthor). Esto permite leer toda la información del préstamo sin necesidad de JOINs ni búsquedas adicionales.
+- **EMBEBIDO:** El array `history[]` contiene objetos `LoanHistoryDocument` directamente en el documento. En SQL esto requeriría una tabla separada `loan_status`; en MongoDB se integra sin tabla adicional.
+
+**Ventaja:** Una sola consulta obtiene: préstamo + información de usuario + información de libro + historial completo de estados.
+
+---
+
+### Repositorios MongoDB
+
+Los repositorios implementan la interfaz `MongoRepository<T, String>` de Spring Data MongoDB, proporcionando operaciones CRUD automáticas más consultas personalizadas.
+
+#### UserRepository
+
+```java
+@Repository
+public interface UserRepository extends MongoRepository<UserDocument, String> {
+    
+    @Query("{ 'email' : ?0 }")
+    Optional<UserDocument> findByEmail(String email);
+    
+    @Query("{ 'username' : ?0 }")
+    Optional<UserDocument> findByUsername(String username);
+    
+    @Query("{ 'role' : ?0 }")
+    List<UserDocument> findByRole(String role);
+    
+    @Query(value = "{ 'role' : 'LIBRARIAN' }", 
+           fields = "{ 'name' : 1, 'email' : 1, 'permissions' : 1, 'department' : 1 }")
+    List<UserDocument> findAllLibrarians();
+    
+    @Query(value = "{ 'role' : 'USER' }", 
+           fields = "{ 'name' : 1, 'email' : 1, 'membershipLevel' : 1, 'maxLoans' : 1 }")
+    List<UserDocument> findAllRegularUsers();
+    
+    @Query("{ 'loginAttempts' : { $gte : ?0 } }")
+    List<UserDocument> findSuspiciousAccounts(int attemptThreshold);
+    
+    @Query("{ 'email' : ?0 }")
+    boolean existsByEmail(String email);
+    
+    @Query("{ 'username' : ?0 }")
+    boolean existsByUsername(String username);
+}
+```
+
+**Métodos disponibles:**
+- CRUD heredados: `save()`, `findById()`, `findAll()`, `deleteById()`, `count()`
+- Búsqueda por email/username (índices únicos)
+- Filtrado por rol con proyección de campos
+- Detección de cuentas sospechosas (intentos de login fallidos)
+- Validación de registro (existsByEmail, existsByUsername)
+
+#### LoanRepository (OPERACIONES AVANZADAS)
+
+```java
+@Repository
+public interface LoanRepository extends MongoRepository<LoanDocument, String> {
+    
+    // Por usuario
+    @Query("{ 'userRef.userId' : ?0 }")
+    List<LoanDocument> findByUserId(String userId);
+    
+    @Query("{ 'userRef.userId' : ?0, 'status' : ?1 }")
+    List<LoanDocument> findByUserIdAndStatus(String userId, String status);
+    
+    // Por libro
+    @Query("{ 'bookRef.bookId' : ?0 }")
+    List<LoanDocument> findByBookId(String bookId);
+    
+    @Query("{ 'bookRef.bookId' : ?0, 'status' : ?1 }")
+    List<LoanDocument> findByBookIdAndStatus(String bookId, String status);
+    
+    // Por estado
+    @Query("{ 'status' : ?0 }")
+    List<LoanDocument> findByStatus(String status);
+    
+    // Préstamos vencidos (aprovecha índice compuesto)
+    @Query("{ 'dueDate' : { $lt : ?0 }, 'status' : 'ACTIVE' }")
+    List<LoanDocument> findOverdueLoans(LocalDateTime now);
+    
+    // Préstamos próximos a vencer
+    @Query("{ 'dueDate' : { $gte : ?0, $lt : ?1 }, 'status' : 'ACTIVE' }")
+    List<LoanDocument> findUpcomingDueLoans(LocalDateTime startDate, LocalDateTime endDate);
+    
+    // Rango de fechas
+    @Query("{ 'loanDate' : { $gte : ?0, $lt : ?1 } }")
+    List<LoanDocument> findLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
+    
+    // Préstamo más reciente de un usuario+libro
+    @Query(value = "{ 'userRef.userId' : ?0, 'bookRef.bookId' : ?1 }", 
+           sort = "{ 'createdAt' : -1 }")
+    Optional<LoanDocument> findMostRecentLoanByUserAndBook(String userId, String bookId);
+    
+    // Contar préstamos activos
+    @Query("{ 'userRef.userId' : ?0, 'status' : ?1 }")
+    long countByUserIdAndStatus(String userId, String status);
+    
+    // Préstamos devueltos en rango
+    @Query("{ 'returnDate' : { $gte : ?0, $lt : ?1 }, 'status' : 'RETURNED' }")
+    List<LoanDocument> findReturnedLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
+}
+```
+
+**Operadores MongoDB utilizados:**
+- `$gt`, `$gte`, `$lt`, `$lte` → comparaciones de rango
+- Índices compuestos → optimización de consultas frecuentes
+- Proyección de campos → reducción de datos transferidos
+
+#### BookRepository
+
+```java
+@Repository
+public interface BookRepository extends MongoRepository<BookDocument, String> {
+    
+    @Query("{ 'title' : ?0 }")
+    Optional<BookDocument> findByTitle(String title);
+    
+    @Query("{ 'isbn' : ?0 }")
+    Optional<BookDocument> findByIsbn(String isbn);
+    
+    @Query("{ 'author' : ?0 }")
+    List<BookDocument> findByAuthor(String author);
+    
+    @Query("{ 'category' : ?0 }")
+    List<BookDocument> findByCategory(String category);
+    
+    // Búsqueda flexible con regex (case-insensitive)
+    @Query("{ 'title' : { $regex : ?0, $options : 'i' } }")
+    List<BookDocument> findByTitleContaining(String titlePattern);
+    
+    @Query("{ 'author' : { $regex : ?0, $options : 'i' } }")
+    List<BookDocument> findByAuthorContaining(String authorPattern);
+    
+    // Disponibilidad
+    @Query("{ 'inventory' : { $gt : 0 } }")
+    List<BookDocument> findAvailableBooks();
+    
+    @Query("{ 'inventory' : 0 }")
+    List<BookDocument> findOutOfStockBooks();
+    
+    @Query("{ 'inventory' : { $gt : 0, $lt : ?0 } }")
+    List<BookDocument> findLowInventoryBooks(int threshold);
+    
+    // Combinadas
+    @Query("{ 'category' : ?0, 'inventory' : { $gt : 0 } }")
+    List<BookDocument> findAvailableBooksByCategory(String category);
+    
+    @Query("{ 'author' : ?0, 'inventory' : { $gt : 0 } }")
+    List<BookDocument> findAvailableBooksByAuthor(String author);
+    
+    // Validación
+    @Query("{ 'isbn' : ?0 }")
+    boolean existsByIsbn(String isbn);
+    
+    // Analytics
+    @Query(value = "{}", sort = "{ 'totalLoans' : -1 }")
+    List<BookDocument> findMostRequestedBooks();
+    
+    @Query("{ 'price' : { $gte : ?0, $lte : ?1 } }")
+    List<BookDocument> findByPriceRange(double minPrice, double maxPrice);
+}
+```
+
+**Características:**
+- Búsquedas por identificadores único (ISBN, título)
+- Búsquedas flexibles con regex (case-insensitive)
+- Filtrado por disponibilidad de inventario
+- Consultas combinadas (categoría + disponibilidad)
+- Analytics (libros más solicitados, rango de precio)
+
+---
+
+### Operaciones CRUD Heredadas de MongoRepository
+
+Todos los repositorios heredan automáticamente estos métodos de `MongoRepository<T, String>`:
+
+```java
+// CREATE
+T save(T entity)
+Iterable<T> saveAll(Iterable<T> entities)
+
+// READ
+Optional<T> findById(String id)
+Iterable<T> findAllById(Iterable<String> ids)
+List<T> findAll()
+
+// UPDATE
+// (usa save con id existente)
+
+// DELETE
+void deleteById(String id)
+void delete(T entity)
+void deleteAll()
+
+// UTILITY
+long count()
+boolean existsById(String id)
 ```
 
 ---
