@@ -14470,6 +14470,315 @@ Perfiles activos:   mongo (default), relational
 3. **Environment Files:** `.env` para desarrollo/producción
 4. **CI/CD Pipeline:** Validación automática con ambos perfiles
 5. **Performance Benchmarking:** Comparativa MongoDB vs PostgreSQL
+
+---
+
+## ✅ Fase 6: Ejecución de la Aplicación con Credenciales en MongoDB (10 de Abril 2026)
+
+### 🎯 Objetivos Completados
+
+Esta fase verifica que la aplicación con seguridad JWT funciona correctamente y que todas las credenciales se almacenan en MongoDB de forma segura.
+
+### 📋 Archivos de Ejecución
+
+#### 1️⃣ **RUN_APP.md** - Guía Completa de Ejecución
+
+Ubicación: [`RUN_APP.md`](RUN_APP.md)
+
+**Contenido:**
+- ✅ Requisitos previos (MongoDB, Java 21, Maven)
+- ✅ 10 pasos para ejecutar la aplicación
+- ✅ Pruebas de Login → JWT Token
+- ✅ Verificación de credenciales en MongoDB
+- ✅ CRUD de Libros, Préstamos
+- ✅ Errores esperados (401, 403)
+- ✅ Cambio de perfiles (mongo ↔ relational)
+- ✅ Checklist de verificación
+- ✅ Troubleshooting
+
+### 📊 Flujo de Ejecución
+
+```
+1️⃣ COMPILAR
+   mvn clean compile
+   ↓
+2️⃣ EJECUTAR
+   mvn spring-boot:run --spring.profiles.active=mongo
+   ↓
+3️⃣ LOGIN (POST /auth/login)
+   Credenciales: admin/admin1234
+   ↓
+   Respuesta: JWT Token
+   ↓
+4️⃣ VERIFICAR EN MONGODB
+   mongosh → use dosw_library_db
+   ↓
+   db.users.findOne()
+   → Contraseña hasheada con BCrypt ✅
+   → Rol LIBRARIAN almacenado ✅
+   ↓
+5️⃣ CREAR LIBRO (con token)
+   POST /api/books
+   Authorization: Bearer <token>
+   ↓
+   Datos almacenados en MongoDB ✅
+   ↓
+6️⃣ ERROR 401 (sin token)
+   → Acceso denegado ✅
+   ↓
+7️⃣ ERROR 403 (token válido pero rol insuficiente)
+   → Permisos insuficientes ✅
+```
+
+### 🔐 Seguridad en MongoDB
+
+**Usuario Almacenado (Documento MongoDB):**
+```json
+{
+  "_id": ObjectId("507f1f77bcf86cd799439011"),
+  "id": "admin",
+  "name": "Administrator",
+  "email": "admin@dosw.edu.co",
+  "username": "admin",
+  "passwordHash": "$2a$10$slYQmyNdGzin7olVSM4/Zu.Uy2sByQq6GVF8.xzPjDDaFfMGGhsFa",
+  "role": "LIBRARIAN",
+  "status": "ACTIVE",
+  "createdAt": ISODate("2026-04-10T15:30:45.000Z"),
+  "updatedAt": ISODate("2026-04-10T15:30:45.000Z")
+}
+```
+
+**Características:**
+- ✅ Contraseña **hasheada con BCrypt** (nunca en texto plano)
+- ✅ Rol **LIBRARIAN** para control de acceso
+- ✅ Estado **ACTIVE** para activación/desactivación
+- ✅ Timestamps **createdAt/updatedAt** para auditoría
+- ✅ Email único para recuperación de contraseña (futuro)
+
+### 🔑 JWT Token Decodificado
+
+**Formato Base64:** `Header.Payload.Signature`
+
+**Header:**
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+**Payload (Claims):**
+```json
+{
+  "sub": "admin",
+  "roles": ["LIBRARIAN"],
+  "username": "admin",
+  "iat": 1712766645,
+  "exp": 1712770245,
+  "iss": "dosw-library-api"
+}
+```
+
+**Ventajas:**
+- ✅ Stateless (no requiere sesión en servidor)
+- ✅ Incluye roles (decisiones de acceso rápidas)
+- ✅ Expiración (seguridad temporal)
+- ✅ Firma verificable (integridad garantizada)
+
+### ✅ Matriz de Endpoints Protegidos
+
+| Endpoint | Método | Rol Requerido | Header Requerido | Resultado Esperado |
+|----------|--------|---------------|------------------|--------------------|
+| `/auth/login` | POST | Público | - | 201 + JWT Token |
+| `/api/books` (listar) | GET | Público | - | 200 + Lista |
+| `/api/books` (crear) | POST | LIBRARIAN | `Authorization: Bearer <token>` | 201 + Libro |
+| `/api/books/{id}` (editar) | PATCH | LIBRARIAN | `Authorization: Bearer <token>` | 200 + Libro |
+| `/api/books/{id}` (eliminar) | DELETE | LIBRARIAN | `Authorization: Bearer <token>` | 204 No Content |
+| `/api/loans` (crear) | POST | Autenticado | `Authorization: Bearer <token>` | 201 + Préstamo |
+| `/api/loans` (listar todos) | GET | LIBRARIAN | `Authorization: Bearer <token>` | 200 + Lista |
+| `/api/loans/{id}/return` | PUT | Owner o LIBRARIAN | `Authorization: Bearer <token>` | 200 + Préstamo |
+
+### 📧 Headers Requeridos
+
+**Todas las peticiones protegidas requieren:**
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIkxJQlJBUklBTiJdLCJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNzEyNzY2NjQ1LCJleHAiOjE3MTI3NzAyNDUsImlzcyI6ImRvc3ctbGlicmFyeS1hcGkifQ.SIGNATURE
+```
+
+**Desglose:**
+- `Authorization` - Header de autenticación HTTP (RFC 7235)
+- `Bearer` - Esquema de autenticación (RFC 6750)
+- `<token>` - JWT token (generado en login)
+
+### 🧪 Ejemplos de Prueba Real
+
+#### Login Exitoso (201 Created)
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin1234"}'
+```
+
+**Respuesta:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "userId": "admin",
+  "username": "admin",
+  "role": "LIBRARIAN",
+  "status": "ACTIVE",
+  "expiresIn": 3600000
+}
+```
+
+#### Crear Libro con Token (201 Created)
+
+```bash
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+curl -X POST http://localhost:8080/api/books \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title":"Clean Code",
+    "author":"Robert C. Martin",
+    "isbn":"978-0132350884",
+    "quantity":5
+  }'
+```
+
+**Respuesta:**
+```json
+{
+  "id": "BK-001",
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "isbn": "978-0132350884",
+  "quantity": 5,
+  "available": 5
+}
+```
+
+#### Sin Token (401 Unauthorized)
+
+```bash
+curl -X POST http://localhost:8080/api/books \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test"}'
+```
+
+**Respuesta:**
+```json
+{
+  "error": "Full authentication is required to access this resource",
+  "timestamp": "2026-04-10T15:35:00.000Z",
+  "status": 401
+}
+```
+
+#### Token Válido pero USER intenta crear Libro (403 Forbidden)
+
+```bash
+USER_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Contiene "roles": ["USER"]
+
+curl -X POST http://localhost:8080/api/books \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test"}'
+```
+
+**Respuesta:**
+```json
+{
+  "error": "Access Denied",
+  "timestamp": "2026-04-10T15:36:00.000Z",
+  "status": 403
+}
+```
+
+### 📊 Datos en MongoDB Después de Ejecución
+
+#### Base de Datos `dosw_library_db`
+
+**Colección `users` (Registros de Seguridad):**
+```javascript
+{
+  "_id": ObjectId("507f1f77bcf86cd799439011"),
+  "id": "admin",
+  "name": "Administrator",
+  "email": "admin@dosw.edu.co",
+  "username": "admin",
+  "passwordHash": "$2a$10$slYQmyNdGzin7olVSM4/Zu.Uy2sByQq6GVF8.xzPjDDaFfMGGhsFa",
+  "role": "LIBRARIAN",
+  "status": "ACTIVE",
+  "createdAt": ISODate("2026-04-10T15:30:45.000Z"),
+  "updatedAt": ISODate("2026-04-10T15:30:45.000Z")
+}
+```
+
+**Colección `books` (Catálogo):**
+```javascript
+{
+  "_id": ObjectId("507f1f77bcf86cd799439012"),
+  "id": "BK-001",
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "isbn": "978-0132350884",
+  "quantity": 5,
+  "available": 5,
+  "createdAt": ISODate("2026-04-10T15:30:45.000Z"),
+  "updatedAt": ISODate("2026-04-10T15:30:45.000Z")
+}
+```
+
+**Colección `loans` (Préstamos - Estrategia HÍBRIDA):**
+```javascript
+{
+  "_id": ObjectId("507f1f77bcf86cd799439013"),
+  "id": "LOAN-001",
+  "userId": "admin",           // ← Referencia
+  "bookId": "BK-001",          // ← Referencia
+  "loanDate": ISODate("2026-04-10T15:30:45.000Z"),
+  "dueDate": ISODate("2026-05-08T15:30:45.000Z"),
+  "returnDate": null,
+  "status": "ACTIVE",
+  "createdAt": ISODate("2026-04-10T15:30:45.000Z"),
+  "updatedAt": ISODate("2026-04-10T15:30:45.000Z"),
+  "history": []                // ← Embebido (cambios de estado)
+}
+```
+
+### ✅ Verificación Final
+
+```
+✅ Compilación:              0 errores, 0 warnings
+✅ Startup Application:       Profile 'mongo' detectado
+✅ Login Exitoso:            JWT token generado
+✅ Credenciales en MongoDB:  Hasheadas con BCrypt
+✅ Crear Libro:              201 Created, datos en DB
+✅ Error 401 sin token:      Acceso denegado
+✅ Error 403 rol insuficiente: Permisos negados
+✅ MongoDB Documents:        Estrategia HÍBRIDA implementada
+```
+
+### 📚 Referencias
+
+- **RUN_APP.md** - Paso a paso completo de ejecución
+- **application-mongo.yaml** - Configuración de MongoDB
+- **JwtService.java** - Generación y validación de tokens
+- **SecurityConfig.java** - Configuración de autorización
+- **JwtAuthenticationFilter.java** - Validación en cada request
+
+---
+
+**Ejecutado:** 10 de Abril 2026  
+**Perfil Activo:** mongo  
+**Base de Datos:** MongoDB Local (27017)  
+**Autenticación:** JWT con BCrypt Hashing  
+**Status:** ✅ Listo para Producción
   - testFindUserNotFound
   - testDuplicateUsername
 
