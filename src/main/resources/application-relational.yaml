@@ -1,0 +1,72 @@
+# ============================================
+# RELATIONAL PROFILE CONFIGURATION
+# ============================================
+# Este archivo se carga SOLO cuando spring.profiles.active=relational
+# Define las configuraciones específicas para PostgreSQL/H2 + JPA
+
+spring:
+  application:
+    name: DOSW-Library-Relational
+
+  # ============================================
+  # DATASOURCE: PostgreSQL Configuration
+  # ============================================
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dosw_library_db
+    username: postgres
+    password: postgres123  # Cambiar a tu contraseña de PostgreSQL
+    driverClassName: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ============================================
+  # JPA / HIBERNATE Configuration
+  # ============================================
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update  # Options: create-drop (dev), update (test), validate (prod)
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+          use_scrollable_resultset: true
+        order_inserts: true
+        order_updates: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # ============================================
+  # Excluir MongoDB (no se usa en Relational)
+  # ============================================
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+
+  # ============================================
+  # Jackson Configuration
+  # ============================================
+  jackson:
+    time-zone: America/Bogota
+    serialization:
+      write-dates-as-timestamps: false
+
+# ============================================
+# Logging for Relational Profile
+# ============================================
+logging:
+  level:
+    root: INFO
+    org.springframework.boot: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: DEBUG
+    org.springframework.orm.jpa: DEBUG

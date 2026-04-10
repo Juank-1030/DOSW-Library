@@ -9,6 +9,15 @@ spring:
     name: DOSW-Library
 
   # ============================================
+  # SPRING PROFILES - Selecciona la implementación
+  # ============================================
+  # Opciones:
+  #   - mongo: Usa MongoDB con repositories @Profile("mongo")
+  #   - relational: Usa PostgreSQL/H2 con repositories @Profile("relational")
+  profiles:
+    active: mongo
+
+  # ============================================
   # DATASOURCE: PostgreSQL Configuration
   # ============================================
   datasource:

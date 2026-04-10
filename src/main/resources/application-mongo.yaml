@@ -1,0 +1,54 @@
+# ============================================
+# MONGO PROFILE CONFIGURATION
+# ============================================
+# Este archivo se carga SOLO cuando spring.profiles.active=mongo
+# Define las configuraciones específicas para MongoDB
+
+spring:
+  application:
+    name: DOSW-Library-MongoDB
+
+  # ============================================
+  # MongoDB Configuration (Principal)
+  # ============================================
+  data:
+    mongodb:
+      # OPCIÓN 1: MongoDB Atlas (Cloud)
+      # Descomenta y usa variables de entorno para producción
+      # export MONGODB_URI="mongodb+srv://user:password@cluster.mongodb.net/dosw_library_db"
+      # uri: ${MONGODB_URI}
+      
+      # OPCIÓN 2: Local MongoDB (Development)
+      uri: mongodb://localhost:27017/dosw_library_db
+      # username: mongouser
+      # password: mongopass
+      # authentication-database: admin
+      
+      auto-index-creation: true
+      # Habilita creación automática de índices basado en @Indexed annotations
+
+  # ============================================
+  # Excluir DataSource (no se usa en Mongo)
+  # ============================================
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+  # ============================================
+  # Jackson Configuration (para serialización)
+  # ============================================
+  jackson:
+    time-zone: America/Bogota
+    serialization:
+      write-dates-as-timestamps: false
+
+# ============================================
+# Logging for MongoDB Profile
+# ============================================
+logging:
+  level:
+    root: INFO
+    org.springframework.boot: INFO
+    org.springframework.data.mongodb: DEBUG
+    org.mongock: INFO
