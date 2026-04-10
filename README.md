@@ -1942,6 +1942,179 @@ Un Repository es una interfaz que actúa como **abstracción entre la lógica de
             └────────────────────────────┘
 ```
 
+### Interfaces Genéricas de Repositorio ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/repository/`
+
+**Propósito:** Definir el contrato CRUD **independiente de la implementación** de persistencia. Esto permite que la lógica de negocio trabaje con cualquier fuente de datos (MongoDB, JPA, etc.) sin acoplamiento directo.
+
+**Arquitectura Multi-Implementación:**
+
+```
+┌────────────────────────────┐
+│  Lógica de Negocio         │
+│  (Services, Controllers)   │
+└──────────┬─────────────────┘
+           │
+           ↓
+┌────────────────────────────────────────┐
+│ Interfaces Genéricas de Repositorio    │  ← Contrato
+│ (persistence/repository/)              │
+│ - LoanRepository                       │
+│ - UserRepository                       │
+│ - BookRepository                       │
+└─┬───────────────────────────────┬──────┘
+  │                               │
+  ↓                               ↓
+┌──────────────────┐      ┌──────────────────┐
+│ MongoDB Impl.    │      │ JPA Impl.        │
+│ (mongodb/repo)   │      │ (jpa/repo)       │
+│ MongoRepository  │      │ JpaRepository    │
+└──────────────────┘      └──────────────────┘
+  │                               │
+  ↓                               ↓
+┌──────────────────┐      ┌──────────────────┐
+│    MongoDB       │      │   PostgreSQL     │
+│   Database       │      │   Database       │
+└──────────────────┘      └──────────────────┘
+```
+
+#### LoanRepository (Interfaz Genérica)
+
+```java
+/**
+ * Interfaz genérica para operaciones sobre Loan.
+ * Puede ser implementada por MongoDB, JPA, o cualquier otra fuente de datos.
+ */
+public interface LoanRepository {
+    
+    // CRUD básico
+    Loan save(Loan loan);
+    List<Loan> saveAll(List<Loan> loans);
+    Optional<Loan> findById(String id);
+    List<Loan> findAll();
+    void deleteById(String id);
+    void delete(Loan loan);
+    void deleteAll();
+    long count();
+    boolean existsById(String id);
+    
+    // Búsquedas especializadas
+    List<Loan> findByUserId(String userId);
+    List<Loan> findByUserIdAndStatus(String userId, String status);
+    List<Loan> findByBookId(String bookId);
+    List<Loan> findOverdueLoans(LocalDateTime now);
+    List<Loan> findUpcomingDueLoans(LocalDateTime startDate, LocalDateTime endDate);
+    List<Loan> findLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
+    // ... más métodos
+}
+```
+
+**Ventajas:**
+- ✅ Desacoplamiento: La lógica de negocio no depende de MongoDB o JPA específicamente
+- ✅ Testabilidad: Fácil crear implementaciones mock para pruebas
+- ✅ Flexibilidad: Cambiar de persistencia sin modificar servicios
+- ✅ Extensibilidad: Agregar nuevas implementaciones sin afectar código existente
+
+#### UserRepository (Interfaz Genérica)
+
+```java
+public interface UserRepository {
+    // CRUD
+    User save(User user);
+    Optional<User> findById(String id);
+    List<User> findAll();
+    // ...
+    
+    // Búsquedas especializadas
+    Optional<User> findByEmail(String email);
+    Optional<User> findByUsername(String username);
+    List<User> findByRole(String role);
+    List<User> findAllLibrarians();
+    List<User> findAllRegularUsers();
+    List<User> findSuspiciousAccounts(int attemptThreshold);
+    boolean existsByEmail(String email);
+    boolean existsByUsername(String username);
+}
+```
+
+#### BookRepository (Interfaz Genérica)
+
+```java
+public interface BookRepository {
+    // CRUD
+    Book save(Book book);
+    Optional<Book> findById(String id);
+    List<Book> findAll();
+    // ...
+    
+    // Búsquedas especializadas
+    Optional<Book> findByTitle(String title);
+    Optional<Book> findByIsbn(String isbn);
+    List<Book> findByAuthor(String author);
+    List<Book> findByCategory(String category);
+    List<Book> findByTitleContaining(String titlePattern);
+    List<Book> findAvailableBooks();
+    List<Book> findOutOfStockBooks();
+    List<Book> findByPriceRange(double minPrice, double maxPrice);
+    boolean existsByIsbn(String isbn);
+}
+```
+
+---
+
+### Implementaciones Concretas de Repositorio
+
+Las interfaces genéricas son implementadas por estrategias específicas:
+
+#### 1. MongoDB Repository (mongodb/repository/)
+- Extiende `MongoRepository<T, String>` de Spring Data MongoDB
+- Implementa la interfaz genérica
+- Consultas con `@Query` de MongoDB
+- Operadores: `$regex`, `$gt`, `$lte`, etc.
+
+#### 2. JPA Repository (futuro)
+- Extiende `JpaRepository<T, String>` de Spring Data JPA
+- Implementa la interfaz genérica
+- Consultas con `@Query` de JPQL
+- Operadores: `LIKE`, `>`, `<=`, etc.
+
+**Ejemplo de uso en Service (agnóstico de implementación):**
+
+```java
+@Service
+public class LoanService {
+    
+    private final LoanRepository loanRepository;  // ← Interfaz genérica
+    
+    public LoanService(LoanRepository loanRepository) {
+        this.loanRepository = loanRepository;
+    }
+    
+    public List<Loan> getOverdueLoans() {
+        // Funciona con MongoDB O JPA O cualquier otra implementación
+        return loanRepository.findOverdueLoans(LocalDateTime.now());
+    }
+}
+```
+
+La implementación real se inyecta en tiempo de ejecución:
+```java
+// En configuración:
+@Bean
+public LoanRepository loanRepository(MongoTemplate mongoTemplate) {
+    return new MongoDB_LoanRepository(mongoTemplate);  // O: JPA_LoanRepository
+}
+```
+
+---
+
+### Implementaciones MongoDB de Repositorio ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/mongodb/repository/`
+
+Las interfaces MongoDB extienden `MongoRepository` y proporcionan métodos específicos:
+
 ### UserRepository ✅
 
 **Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/core/repository/UserRepository.java`
