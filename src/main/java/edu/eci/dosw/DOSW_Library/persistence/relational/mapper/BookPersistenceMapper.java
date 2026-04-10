@@ -171,6 +171,6 @@ public class BookPersistenceMapper {
 
         return books.stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

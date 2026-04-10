@@ -102,7 +102,7 @@ public class LoanPersistenceMapper {
     public List<LoanDTO> toDTOList(List<Loan> loans) {
         if (loans == null)
             return List.of();
-        return loans.stream().map(this::toDTO).collect(Collectors.toList());
+        return loans.stream().map(this::toDTO).toList();
     }
 
     public LoanSummaryDTO toSummaryDTO(Loan domain) {
@@ -122,7 +122,7 @@ public class LoanPersistenceMapper {
     public List<LoanSummaryDTO> toSummaryDTOList(List<Loan> loans) {
         if (loans == null)
             return List.of();
-        return loans.stream().map(this::toSummaryDTO).collect(Collectors.toList());
+        return loans.stream().map(this::toSummaryDTO).toList();
     }
 
     public LoanDTO toDTO(Loan domain, User user, Book book) {
@@ -146,7 +146,7 @@ public class LoanPersistenceMapper {
                 .map(loan -> toDTO(loan,
                         users != null && loan.getUser() != null ? users.get(loan.getUser().getId()) : null,
                         books != null && loan.getBook() != null ? books.get(loan.getBook().getId()) : null))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public LoanSummaryDTO toSummaryDTO(Loan domain, User user, Book book) {
@@ -172,7 +172,7 @@ public class LoanPersistenceMapper {
                 .map(loan -> toSummaryDTO(loan,
                         users != null && loan.getUser() != null ? users.get(loan.getUser().getId()) : null,
                         books != null && loan.getBook() != null ? books.get(loan.getBook().getId()) : null))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private LoanStatus convertStatusFromEntity(

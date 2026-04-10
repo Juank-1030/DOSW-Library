@@ -5,7 +5,8 @@ import edu.eci.dosw.DOSW_Library.persistence.mongodb.document.LoanDocument;
 import org.springframework.stereotype.Component;
 
 /**
- * Mapper que convierte entre documento MongoDB LoanDocument y modelo de dominio Loan.
+ * Mapper que convierte entre documento MongoDB LoanDocument y modelo de dominio
+ * Loan.
  * 
  * Realiza conversión entre la representación NoSQL (con estrategia HYBRID:
  * referencias + embedded documents) y el modelo de dominio agnóstico de

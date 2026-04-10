@@ -15,8 +15,10 @@ import java.util.stream.Collectors;
  * Implementación MongoDB de LoanRepository.
  * Esta implementación está activa cuando el perfil "mongo" está habilitado.
  *
- * Proporciona todas las operaciones CRUD y consultas especializadas usando MongoDB.
- * La conversión entre documentos y dominios se realiza mediante LoanDocumentMapper.
+ * Proporciona todas las operaciones CRUD y consultas especializadas usando
+ * MongoDB.
+ * La conversión entre documentos y dominios se realiza mediante
+ * LoanDocumentMapper.
  *
  * @see LoanRepository - Interfaz genérica
  * @see Profile - Esta implementación solo se activa con @Profile("mongo")
@@ -45,15 +47,28 @@ public class LoanRepositoryMongoImpl implements LoanRepository {
                 repository.save(mapper.toDocument(loan)));
     }
 
+    /**
+     * Método auxiliar para mapear listas de documentos a modelos de dominio.
+     * Utiliza Stream API para procesamiento funcional eficiente.
+     *
+     * @param documents lista de LoanDocument
+     * @return lista de Loan mapeados
+     */
+    private List<Loan> mapDocumentsToDomain(List<?> documents) {
+        return documents.stream()
+                .map(doc -> mapper.toDomain((com.eci.dosw.DOSW_Library.persistence.mongodb.document.LoanDocument) doc))
+                .toList();
+    }
+
     @Override
     public List<Loan> saveAll(List<Loan> loans) {
         return repository.saveAll(
                 loans.stream()
                         .map(mapper::toDocument)
-                        .collect(Collectors.toList()))
+                        .toList())
                 .stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -67,71 +82,63 @@ public class LoanRepositoryMongoImpl implements LoanRepository {
         return repository.findAll()
                 .stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findByUserId(String userId) {
-        return repository.findByUserId(userId)
-                .stream()
+        return repository.findByUserId(userId).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findByUserIdAndStatus(String userId, String status) {
-        return repository.findByUserIdAndStatus(userId, status)
-                .stream()
+        return repository.findByUserIdAndStatus(userId, status).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findByBookId(String bookId) {
-        return repository.findByBookId(bookId)
-                .stream()
+        return repository.findByBookId(bookId).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findByBookIdAndStatus(String bookId, String status) {
-        return repository.findByBookIdAndStatus(bookId, status)
-                .stream()
+        return repository.findByBookIdAndStatus(bookId, status).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findByStatus(String status) {
-        return repository.findByStatus(status)
-                .stream()
+        return repository.findByStatus(status).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findOverdueLoans(LocalDateTime baseDate) {
-        return repository.findOverdueLoans(baseDate)
-                .stream()
+        return repository.findOverdueLoans(baseDate).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findUpcomingDueLoans(LocalDateTime startDate, LocalDateTime endDate) {
-        return repository.findUpcomingDueLoans(startDate, endDate)
-                .stream()
+        return repository.findUpcomingDueLoans(startDate, endDate).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Loan> findLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return repository.findLoansByDateRange(startDate, endDate)
-                .stream()
+        return repository.findLoansByDateRange(startDate, endDate).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -147,10 +154,9 @@ public class LoanRepositoryMongoImpl implements LoanRepository {
 
     @Override
     public List<Loan> findReturnedLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return repository.findReturnedLoansByDateRange(startDate, endDate)
-                .stream()
+        return repository.findReturnedLoansByDateRange(startDate, endDate).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

@@ -5,7 +5,8 @@ import edu.eci.dosw.DOSW_Library.persistence.mongodb.document.UserDocument;
 import org.springframework.stereotype.Component;
 
 /**
- * Mapper que convierte entre documento MongoDB UserDocument y modelo de dominio User.
+ * Mapper que convierte entre documento MongoDB UserDocument y modelo de dominio
+ * User.
  * 
  * Realiza conversión bidireccional entre la representación NoSQL y el modelo
  * de dominio agnóstico de persistencia.

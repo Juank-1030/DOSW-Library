@@ -5,7 +5,8 @@ import edu.eci.dosw.DOSW_Library.persistence.mongodb.document.BookDocument;
 import org.springframework.stereotype.Component;
 
 /**
- * Mapper que convierte entre documento MongoDB BookDocument y modelo de dominio Book.
+ * Mapper que convierte entre documento MongoDB BookDocument y modelo de dominio
+ * Book.
  * 
  * Realiza conversión bidireccional entre la representación NoSQL y el modelo
  * de dominio agnóstico de persistencia.

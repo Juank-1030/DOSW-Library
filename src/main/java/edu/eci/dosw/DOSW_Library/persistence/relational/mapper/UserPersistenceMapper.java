@@ -241,6 +241,6 @@ public class UserPersistenceMapper {
 
         return users.stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

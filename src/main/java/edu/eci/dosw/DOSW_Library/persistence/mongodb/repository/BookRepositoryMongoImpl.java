@@ -15,8 +15,10 @@ import java.util.stream.Collectors;
  * Implementación MongoDB de BookRepository.
  * Esta implementación está activa cuando el perfil "mongo" está habilitado.
  *
- * Proporciona todas las operaciones CRUD y consultas especializadas usando MongoDB.
- * La conversión entre documentos y dominios se realiza mediante BookDocumentMapper.
+ * Proporciona todas las operaciones CRUD y consultas especializadas usando
+ * MongoDB.
+ * La conversión entre documentos y dominios se realiza mediante
+ * BookDocumentMapper.
  *
  * @see BookRepository - Interfaz genérica
  * @see Profile - Esta implementación solo se activa con @Profile("mongo")
@@ -50,10 +52,10 @@ public class BookRepositoryMongoImpl implements BookRepository {
         return repository.saveAll(
                 books.stream()
                         .map(mapper::toDocument)
-                        .collect(Collectors.toList()))
+                        .toList())
                 .stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -67,7 +69,7 @@ public class BookRepositoryMongoImpl implements BookRepository {
         return repository.findAll()
                 .stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -84,41 +86,36 @@ public class BookRepositoryMongoImpl implements BookRepository {
 
     @Override
     public List<Book> findByAuthor(String author) {
-        return repository.findByAuthor(author)
-                .stream()
+        return repository.findByAuthor(author).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Book> findByCategory(String category) {
-        return repository.findByCategory(category)
-                .stream()
+        return repository.findByCategory(category).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Book> findByTitleContaining(String title) {
-        return repository.findByTitleContaining(title)
-                .stream()
+        return repository.findByTitleContaining(title).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Book> findByAuthorContaining(String author) {
-        return repository.findByAuthorContaining(author)
-                .stream()
+        return repository.findByAuthorContaining(author).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<Book> findByInventoryGreaterThan(Integer minInventory) {
-        return repository.findByInventoryGreaterThan(minInventory)
-                .stream()
+        return repository.findByInventoryGreaterThan(minInventory).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<Book> findByPriceBetween(BigDecimal minPrice, BigDecimal maxPrice) {
@@ -130,17 +127,15 @@ public class BookRepositoryMongoImpl implements BookRepository {
     public List<Book> findByPriceRange(double minPrice, double maxPrice) {
         return findByPriceBetween(
                 BigDecimal.valueOf(minPrice),
-                BigDecimal.valueOf(maxPrice)
-        );
+                BigDecimal.valueOf(maxPrice));
     }
 
     @Override
     public List<Book> findAvailableBooks() {
         // Libros con disponibilidad > 0
-        return repository.findByInventoryGreaterThan(0)
-                .stream()
+        return repository.findByInventoryGreaterThan(0).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -151,26 +146,23 @@ public class BookRepositoryMongoImpl implements BookRepository {
 
     @Override
     public List<Book> findLowInventoryBooks(int threshold) {
-        return repository.findLowInventoryBooks(threshold)
-                .stream()
+        return repository.findLowInventoryBooks(threshold).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Book> findAvailableBooksByCategory(String category) {
-        return repository.findByCategory(category)
-                .stream()
+        return repository.findByCategory(category).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Book> findAvailableBooksByAuthor(String author) {
-        return repository.findByAuthor(author)
-                .stream()
+        return repository.findByAuthor(author).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -181,10 +173,9 @@ public class BookRepositoryMongoImpl implements BookRepository {
     @Override
     public List<Book> findMostRequestedBooks() {
         // Placeholder para libros más solicitados
-        return repository.findAll()
-                .stream()
+        return repository.findAll().stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
