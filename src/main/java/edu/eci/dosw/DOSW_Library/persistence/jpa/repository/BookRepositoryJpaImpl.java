@@ -11,10 +11,12 @@ import java.util.Optional;
 
 /**
  * Implementación JPA de BookRepository.
- * Esta implementación está activa cuando el perfil "relational" está habilitado.
+ * Esta implementación está activa cuando el perfil "relational" está
+ * habilitado.
  *
  * Proporciona todas las operaciones CRUD y consultas especializadas usando JPA.
- * La conversión entre entidades y dominios se realiza mediante BookEntityMapper.
+ * La conversión entre entidades y dominios se realiza mediante
+ * BookEntityMapper.
  *
  * @see BookRepository - Interfaz genérica
  * @see Profile - Esta implementación solo se activa con @Profile("relational")
@@ -40,33 +42,32 @@ public class BookRepositoryJpaImpl implements BookRepository {
     @Override
     public Book save(Book book) {
         return mapper.toDomain(
-            repository.save(mapper.toEntity(book))
-        );
+                repository.save(mapper.toEntity(book)));
     }
 
     @Override
     public List<Book> saveAll(List<Book> books) {
         return repository.saveAll(
-            books.stream()
-                .map(mapper::toEntity)
-                .toList()
-        ).stream()
-            .map(mapper::toDomain)
-            .toList();
+                books.stream()
+                        .map(mapper::toEntity)
+                        .toList())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public Optional<Book> findById(String id) {
         return repository.findById(id)
-            .map(mapper::toDomain);
+                .map(mapper::toDomain);
     }
 
     @Override
     public List<Book> findAll() {
         return repository.findAll()
-            .stream()
-            .map(mapper::toDomain)
-            .toList();
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override

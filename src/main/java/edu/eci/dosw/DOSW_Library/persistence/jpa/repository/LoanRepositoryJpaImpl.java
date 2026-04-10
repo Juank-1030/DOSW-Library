@@ -12,10 +12,12 @@ import java.util.Optional;
 
 /**
  * Implementación JPA de LoanRepository.
- * Esta implementación está activa cuando el perfil "relational" está habilitado.
+ * Esta implementación está activa cuando el perfil "relational" está
+ * habilitado.
  *
  * Proporciona todas las operaciones CRUD y consultas especializadas usando JPA.
- * La conversión entre entidades y dominios se realiza mediante LoanEntityMapper.
+ * La conversión entre entidades y dominios se realiza mediante
+ * LoanEntityMapper.
  *
  * @see LoanRepository - Interfaz genérica
  * @see Profile - Esta implementación solo se activa con @Profile("relational")
@@ -41,33 +43,32 @@ public class LoanRepositoryJpaImpl implements LoanRepository {
     @Override
     public Loan save(Loan loan) {
         return mapper.toDomain(
-            repository.save(mapper.toEntity(loan))
-        );
+                repository.save(mapper.toEntity(loan)));
     }
 
     @Override
     public List<Loan> saveAll(List<Loan> loans) {
         return repository.saveAll(
-            loans.stream()
-                .map(mapper::toEntity)
-                .toList()
-        ).stream()
-            .map(mapper::toDomain)
-            .toList();
+                loans.stream()
+                        .map(mapper::toEntity)
+                        .toList())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public Optional<Loan> findById(String id) {
         return repository.findById(id)
-            .map(mapper::toDomain);
+                .map(mapper::toDomain);
     }
 
     @Override
     public List<Loan> findAll() {
         return repository.findAll()
-            .stream()
-            .map(mapper::toDomain)
-            .toList();
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override

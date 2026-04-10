@@ -64,7 +64,8 @@ public class BookService {
      * Constructor con inyección de dependencias.
      * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param bookRepository Repositorio genérico de libros (implementación: MongoDB o JPA)
+     * @param bookRepository Repositorio genérico de libros (implementación: MongoDB
+     *                       o JPA)
      */
     public BookService(BookRepository bookRepository) {
         this.bookRepository = bookRepository;

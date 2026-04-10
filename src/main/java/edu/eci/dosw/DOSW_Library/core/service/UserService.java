@@ -37,7 +37,8 @@ public class UserService {
      * Constructor con inyección de dependencias.
      * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param userRepository Repositorio genérico de usuarios (implementación: MongoDB o JPA)
+     * @param userRepository Repositorio genérico de usuarios (implementación:
+     *                       MongoDB o JPA)
      */
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;

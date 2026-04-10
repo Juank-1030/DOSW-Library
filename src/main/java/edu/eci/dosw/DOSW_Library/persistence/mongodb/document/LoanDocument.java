@@ -38,9 +38,9 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @CompoundIndexes({
-    @CompoundIndex(name = "user_status_idx", def = "{'userRef.userId': 1, 'status': 1}"),
-    @CompoundIndex(name = "book_status_idx", def = "{'bookRef.bookId': 1, 'status': 1}"),
-    @CompoundIndex(name = "dueDate_idx", def = "{'dueDate': 1, 'status': 1}")
+        @CompoundIndex(name = "user_status_idx", def = "{'userRef.userId': 1, 'status': 1}"),
+        @CompoundIndex(name = "book_status_idx", def = "{'bookRef.bookId': 1, 'status': 1}"),
+        @CompoundIndex(name = "dueDate_idx", def = "{'dueDate': 1, 'status': 1}")
 })
 public class LoanDocument {
 

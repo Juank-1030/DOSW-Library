@@ -11,7 +11,8 @@ import java.util.Optional;
  * (MongoDB, JPA/PostgreSQL, etc.)
  *
  * Esta es la interfaz de abstracción de persistencia.
- * Las implementaciones concretas (MongoDB, JPA) deben implementar estos métodos.
+ * Las implementaciones concretas (MongoDB, JPA) deben implementar estos
+ * métodos.
  */
 public interface UserRepository {
 

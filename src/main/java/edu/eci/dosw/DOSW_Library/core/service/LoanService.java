@@ -88,7 +88,8 @@ public class LoanService {
      * Constructor con inyección de dependencias.
      * Spring inyecta automáticamente usando el constructor único.
      * 
-     * @param loanRepository Repositorio genérico de préstamos (implementación: MongoDB o JPA)
+     * @param loanRepository Repositorio genérico de préstamos (implementación:
+     *                       MongoDB o JPA)
      * @param bookService    Servicio de libros
      * @param userService    Servicio de usuarios
      */

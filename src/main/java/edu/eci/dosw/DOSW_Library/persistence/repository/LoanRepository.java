@@ -12,7 +12,8 @@ import java.util.Optional;
  * (MongoDB, JPA/PostgreSQL, etc.)
  *
  * Esta es la interfaz de abstracción de persistencia.
- * Las implementaciones concretas (MongoDB, JPA) deben implementar estos métodos.
+ * Las implementaciones concretas (MongoDB, JPA) deben implementar estos
+ * métodos.
  */
 public interface LoanRepository {
 
@@ -101,7 +102,7 @@ public interface LoanRepository {
      * Busca los préstamos próximos a vencer (dentro de N días).
      *
      * @param startDate la fecha actual
-     * @param endDate la fecha límite
+     * @param endDate   la fecha límite
      * @return lista de préstamos próximos a vencer
      */
     List<Loan> findUpcomingDueLoans(LocalDateTime startDate, LocalDateTime endDate);
@@ -110,7 +111,7 @@ public interface LoanRepository {
      * Busca los préstamos en rango de fechas.
      *
      * @param startDate fecha inicio del rango
-     * @param endDate fecha fin del rango
+     * @param endDate   fecha fin del rango
      * @return lista de préstamos en el rango
      */
     List<Loan> findLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);
@@ -137,7 +138,7 @@ public interface LoanRepository {
      * Busca todos los préstamos devueltos en un rango de fechas.
      *
      * @param startDate fecha inicio
-     * @param endDate fecha fin
+     * @param endDate   fecha fin
      * @return lista de préstamos devueltos
      */
     List<Loan> findReturnedLoansByDateRange(LocalDateTime startDate, LocalDateTime endDate);

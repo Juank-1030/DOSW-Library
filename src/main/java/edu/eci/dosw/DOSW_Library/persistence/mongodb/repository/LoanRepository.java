@@ -95,7 +95,7 @@ public interface LoanRepository extends MongoRepository<LoanDocument, String> {
      * Busca los préstamos próximos a vencer (dentro de N días).
      *
      * @param startDate la fecha actual
-     * @param endDate la fecha límite
+     * @param endDate   la fecha límite
      * @return lista de préstamos próximos a vencer
      */
     @Query("{ 'dueDate' : { $gte : ?0, $lt : ?1 }, 'status' : 'ACTIVE' }")
@@ -105,7 +105,7 @@ public interface LoanRepository extends MongoRepository<LoanDocument, String> {
      * Busca los préstamos en rango de fechas.
      *
      * @param startDate fecha inicio del rango
-     * @param endDate fecha fin del rango
+     * @param endDate   fecha fin del rango
      * @return lista de préstamos en el rango
      */
     @Query("{ 'loanDate' : { $gte : ?0, $lt : ?1 } }")
@@ -135,7 +135,7 @@ public interface LoanRepository extends MongoRepository<LoanDocument, String> {
      * Busca todos los préstamos devueltos en un rango de fechas.
      *
      * @param startDate fecha inicio
-     * @param endDate fecha fin
+     * @param endDate   fecha fin
      * @return lista de préstamos devueltos
      */
     @Query("{ 'returnDate' : { $gte : ?0, $lt : ?1 }, 'status' : 'RETURNED' }")

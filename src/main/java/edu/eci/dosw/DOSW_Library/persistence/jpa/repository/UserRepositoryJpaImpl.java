@@ -11,10 +11,12 @@ import java.util.Optional;
 
 /**
  * Implementación JPA de UserRepository.
- * Esta implementación está activa cuando el perfil "relational" está habilitado.
+ * Esta implementación está activa cuando el perfil "relational" está
+ * habilitado.
  *
  * Proporciona todas las operaciones CRUD y consultas especializadas usando JPA.
- * La conversión entre entidades y dominios se realiza mediante UserEntityMapper.
+ * La conversión entre entidades y dominios se realiza mediante
+ * UserEntityMapper.
  *
  * @see UserRepository - Interfaz genérica
  * @see Profile - Esta implementación solo se activa con @Profile("relational")
@@ -40,33 +42,32 @@ public class UserRepositoryJpaImpl implements UserRepository {
     @Override
     public User save(User user) {
         return mapper.toDomain(
-            repository.save(mapper.toEntity(user))
-        );
+                repository.save(mapper.toEntity(user)));
     }
 
     @Override
     public List<User> saveAll(List<User> users) {
         return repository.saveAll(
-            users.stream()
-                .map(mapper::toEntity)
-                .toList()
-        ).stream()
-            .map(mapper::toDomain)
-            .toList();
+                users.stream()
+                        .map(mapper::toEntity)
+                        .toList())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public Optional<User> findById(String id) {
         return repository.findById(id)
-            .map(mapper::toDomain);
+                .map(mapper::toDomain);
     }
 
     @Override
     public List<User> findAll() {
         return repository.findAll()
-            .stream()
-            .map(mapper::toDomain)
-            .toList();
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override

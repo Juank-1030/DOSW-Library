@@ -9,7 +9,8 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA genera la implementación automáticamente.
  *
  * NOTA: Esta es una interfaz interna de la capa JPA.
- * Los servicios usan la interfaz genérica: persistence.repository.UserRepository
+ * Los servicios usan la interfaz genérica:
+ * persistence.repository.UserRepository
  * que es implementada por UserRepositoryJpaImpl.
  */
 @Repository
