@@ -1,11 +1,8 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -67,9 +64,8 @@ public class Book {
 
     /**
      * Relación 1:N con Loan (un libro puede tener muchos préstamos)
-     * orphanRemoval=true: elimina préstamos huérfanos cuando se elimina el libro
+     * En MongoDB, las relaciones se manejan de forma denormalizada o por referencia
      */
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Loan> loans = new ArrayList<>();
 
