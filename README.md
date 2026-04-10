@@ -2389,6 +2389,185 @@ USER REQUEST (GET /api/loans/user/123)
 
 ---
 
+### Implementaciones Concretas: Repositorios JPA ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/jpa/repository/`
+
+Cada interfaz genérica de repositorio tiene una implementación JPA concreta que:
+1. Implementa la interfaz genérica (`LoanRepository`, `UserRepository`, `BookRepository`)
+2. Está anotada con `@Repository` + `@Profile("relational")`
+3. Inyecta el JPA Repository de Spring Data
+4. Inyecta el Mapper correspondiente
+5. Convierte entre Domain ↔ Entity
+
+#### LoanRepositoryJpaImpl
+
+```java
+@Repository
+@Profile("relational")
+public class LoanRepositoryJpaImpl implements LoanRepository {
+    
+    private final JpaLoanRepository repository;      // Spring Data JPA
+    private final LoanEntityMapper mapper;           // Conversión Domain ↔ Entity
+    
+    public LoanRepositoryJpaImpl(JpaLoanRepository repository, LoanEntityMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
+    
+    @Override
+    public Loan save(Loan loan) {
+        // Convierte: Domain → Entity → BD → Entity → Domain
+        return mapper.toDomain(
+            repository.save(mapper.toEntity(loan))
+        );
+    }
+    
+    @Override
+    public List<Loan> findAll() {
+        return repository.findAll()
+            .stream()
+            .map(mapper::toDomain)
+            .toList();
+    }
+    
+    // ... +21 métodos más
+}
+```
+
+**Métodos Implementados:**
+- CRUD básico: save, saveAll, findById, findAll, deleteById, delete, deleteAll, count, existsById
+- Especializados: findByUserId, findByUserIdAndStatus, findByBookId, findOverdueLoans, etc.
+- Métodos con comportamiento: 23 métodos totales
+
+#### UserRepositoryJpaImpl
+
+```java
+@Repository
+@Profile("relational")
+public class UserRepositoryJpaImpl implements UserRepository {
+    
+    private final JpaUserRepository repository;
+    private final UserEntityMapper mapper;
+    
+    // ... CRUD: save, findById, findAll
+    // ... Especializados: findByEmail, findByUsername, findByRole, etc.
+}
+```
+
+#### BookRepositoryJpaImpl
+
+```java
+@Repository
+@Profile("relational")
+public class BookRepositoryJpaImpl implements BookRepository {
+    
+    private final JpaBookRepository repository;
+    private final BookEntityMapper mapper;
+    
+    // ... CRUD: save, findById, findAll
+    // ... Especializados: findByTitle, findByIsbn, findByAuthor, etc.
+}
+```
+
+---
+
+### Mappers: Conversión Entity ↔ Domain ✅
+
+**Ubicación:** `src/main/java/edu/eci/dosw/DOSW_Library/persistence/jpa/mapper/`
+
+Los mappers convierten entre entidades JPA y modelos de dominio:
+
+#### LoanEntityMapper
+
+```java
+@Component
+public class LoanEntityMapper {
+    
+    /**
+     * Convierte modelo de dominio a entidad JPA para persistencia.
+     * En esta arquitectura: identity mapping (mismo objeto)
+     * En proyectos grandes: transformaciones complejas aquí
+     */
+    public Loan toEntity(Loan loan) {
+        return loan;  // En caso real: new LoanEntity(loan.getId(), ...)
+    }
+    
+    /**
+     * Convierte entidad JPA recuperada de BD a modelo de dominio.
+     */
+    public Loan toDomain(Loan entity) {
+        return entity;  // En caso real: new Loan(entity.getId(), ...)
+    }
+}
+```
+
+Los otros mappers siguen el mismo patrón:
+- UserEntityMapper (User ↔ UserEntity)
+- BookEntityMapper (Book ↔ BookEntity)
+
+**Propósito del Mapper:**
+- Desacoplar modelo de dominio de entidad JPA
+- Permitir transformaciones de datos
+- Punto de expansión para lógica de convertión compleja
+- Reutilizable en múltiples contextos
+
+---
+
+### Patrón Multi-Perfil (Perfiles de Spring) ✅
+
+**Cómo Funciona:**
+
+Cada implementación está etiquetada con `@Profile`:
+
+```
+@Profile("relational") → Se activa CON --spring.profiles.active=relational
+@Profile("mongodb")    → Se activa CON --spring.profiles.active=mongodb
+```
+
+**Configuración en application.properties:**
+
+```properties
+# Opción 1: Usar JPA + PostgreSQL
+spring.profiles.active=relational
+
+# Opción 2: Usar MongoDB (futuro)
+spring.profiles.active=mongodb
+```
+
+**En aplicación:**
+
+```java
+// Services siempre usan la interfaz genérica
+@Service
+public class LoanService {
+    private final LoanRepository repository;  // ← Interfaz genérica
+    
+    public LoanService(LoanRepository repository) {
+        this.repository = repository;
+    }
+    
+    public List<Loan> getAllLoans() {
+        // Usa la implementación activa (JPA O MongoDB)
+        return repository.findAll();
+    }
+}
+```
+
+**En tiempo de ejecución:**
+
+```
+Si perfil = "relational":
+  LoanRepository → LoanRepositoryJpaImpl (uses JPA)
+  
+Si perfil = "mongodb":
+  LoanRepository → MongoDBLoanRepositoryImpl (uses MongoDB)
+  
+Services permanecen sin cambios ✅
+```
+
+---
+
 ### Resumen de Métodos Repository
 
 | Repository | Clase Base | Métodos Clave | Ubicación |
