@@ -8949,12 +8949,29 @@ Se implementó una arquitectura completa que permite almacenar electivamente ent
 
 **Componentes Implementados:**
 - ✅ 3 interfaces genéricas de repositorio (517 líneas) → Define contratos agnósticos
-- ✅ 7 implementaciones MongoDB (600+ líneas) → Capa NoSQL lista
+- ✅ 9 implementaciones MongoDB (884 líneas) → Capa NoSQL completa (Commit 5dd2422)
 - ✅ 9 implementaciones JPA (662 líneas) → Capa Relacional completa (Commit 2770d57)
-- ✅ 3 Mappers JPA (@Component) → Conversión Entity ↔ Domain
+- ✅ 6 Mappers (3 JPA + 3 MongoDB) → Conversión Entity/Document ↔ Domain
 - ✅ Servicios refactorizados → Usar inyección genérica (sin @Autowired)
 
 **Resultado Compilación:** ✅ 0 errores | ✅ 0 warnings
+
+---
+
+### Lista Completa de Cambios MongoDB (Commit 5dd2422 - 884 líneas, 9 archivos) ✅
+
+| Archivo | Tipo | Métodos | Propósito | Estado |
+|---------|------|---------|----------|--------|
+| `persistence/mongodb/repository/MongoLoanRepository.java` | Interface | N/A | Spring Data MongoDB | ✅ |
+| `persistence/mongodb/repository/MongoUserRepository.java` | Interface | N/A | Spring Data MongoDB | ✅ |
+| `persistence/mongodb/repository/MongoBookRepository.java` | Interface | N/A | Spring Data MongoDB | ✅ |
+| `persistence/mongodb/repository/LoanRepositoryMongoImpl.java` | Implementación | 24 | @Profile("mongo") | ✅ |
+| `persistence/mongodb/repository/UserRepositoryMongoImpl.java` | Implementación | 21 | @Profile("mongo") | ✅ |
+| `persistence/mongodb/repository/BookRepositoryMongoImpl.java` | Implementación | 23 | @Profile("mongo") | ✅ |
+| `persistence/mongodb/mapper/LoanDocumentMapper.java` | Mapper | 2 | toDocument / toDomain | ✅ |
+| `persistence/mongodb/mapper/UserDocumentMapper.java` | Mapper | 2 | toDocument / toDomain | ✅ |
+| `persistence/mongodb/mapper/BookDocumentMapper.java` | Mapper | 2 | toDocument / toDomain | ✅ |
+| **TOTAL** | **9 archivos** | **68 métodos** | **+884 líneas** | **✅ COMPLETO** |
 
 ---
 
@@ -9176,6 +9193,252 @@ public class BookRepositoryJpaImpl implements BookRepository {
     }
 
     // ... 21 métodos más (catálogo, búsqueda por autor, etc.)
+}
+```
+
+---
+
+### 12.2b Implementaciones Concretas: Capa MongoDB (NoSQL) ✅ (Commit 5dd2422)
+
+**Nuevas Interfaces Spring Data MongoDB:**
+- `MongoLoanRepository extends MongoRepository<LoanDocument, String>` - 15+ @Query methods
+- `MongoUserRepository extends MongoRepository<UserDocument, String>` - 6+ @Query methods
+- `MongoBookRepository extends MongoRepository<BookDocument, String>` - 9+ @Query methods
+
+**Implementaciones Concretas (@Profile("mongo")):**
+
+#### LoanRepositoryMongoImpl - 24 Métodos
+
+```java
+@Repository
+@Profile("mongo")
+@RequiredArgsConstructor
+public class LoanRepositoryMongoImpl implements LoanRepository {
+
+    private final MongoLoanRepository repository;
+    private final LoanDocumentMapper mapper;
+
+    @Override
+    public Loan save(Loan loan) {
+        return mapper.toDomain(
+            repository.save(mapper.toDocument(loan))
+        );
+    }
+
+    @Override
+    public List<Loan> findAll() {
+        return repository.findAll()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void delete(Loan loan) {
+        if (loan != null && loan.getId() != null) {
+            repository.deleteById(loan.getId());
+        }
+    }
+
+    @Override
+    public List<Loan> findByUserId(String userId) {
+        return repository.findByUserId(userId)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Loan> findOverdueLoans(LocalDateTime baseDate) {
+        return repository.findOverdueLoans(baseDate)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    // ... 19 métodos más (todas las operaciones CRUD + especializadas)
+}
+```
+
+**Patrón Observable:**
+1. Spring inyecta `MongoLoanRepository` (Spring Data MongoDB)
+2. Para cada operación: `mapper.toDocument() → repository.operation() → mapper.toDomain()`
+3. Resultado: Domain model transparente a implementación
+4. Ventaja: Cambiar a JPA = solo cambiar `@Profile` activado
+
+#### UserRepositoryMongoImpl - 21 Métodos
+
+```java
+@Repository
+@Profile("mongo")
+@RequiredArgsConstructor
+public class UserRepositoryMongoImpl implements UserRepository {
+
+    private final MongoUserRepository repository;
+    private final UserDocumentMapper mapper;
+
+    @Override
+    public User save(User user) {
+        return mapper.toDomain(
+            repository.save(mapper.toDocument(user))
+        );
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return repository.findByEmail(email)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<User> findByRole(String role) {
+        return repository.findByRole(role)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    // ... 18 métodos más
+}
+```
+
+#### BookRepositoryMongoImpl - 23 Métodos
+
+```java
+@Repository
+@Profile("mongo")
+@RequiredArgsConstructor
+public class BookRepositoryMongoImpl implements BookRepository {
+
+    private final MongoBookRepository repository;
+    private final BookDocumentMapper mapper;
+
+    @Override
+    public Book save(Book book) {
+        return mapper.toDomain(
+            repository.save(mapper.toDocument(book))
+        );
+    }
+
+    @Override
+    public Optional<Book> findByIsbn(String isbn) {
+        return repository.findByIsbn(isbn)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Book> findByAuthor(String author) {
+        return repository.findByAuthor(author)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    // ... 20 métodos más
+}
+```
+
+---
+
+### 12.2c Document Mappers: Conversión Document ↔ Domain
+
+#### LoanDocumentMapper
+
+```java
+@Component
+public class LoanDocumentMapper {
+
+    public LoanDocument toDocument(Loan loan) {
+        if (loan == null) return null;
+        
+        return LoanDocument.builder()
+                .id(loan.getId())
+                .loanDate(loan.getLoanDate())
+                .dueDate(loan.getDueDate())
+                .returnDate(loan.getReturnDate())
+                .status(loan.getStatus() != null ? loan.getStatus().toString() : null)
+                .createdAt(loan.getCreatedAt())
+                .updatedAt(loan.getUpdatedAt())
+                .build();
+    }
+
+    public Loan toDomain(LoanDocument document) {
+        if (document == null) return null;
+        
+        return Loan.builder()
+                .id(document.getId())
+                .loanDate(document.getLoanDate())
+                .dueDate(document.getDueDate())
+                .returnDate(document.getReturnDate())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .build();
+    }
+}
+```
+
+#### UserDocumentMapper
+
+```java
+@Component
+public class UserDocumentMapper {
+
+    public UserDocument toDocument(User user) {
+        if (user == null) return null;
+        
+        return UserDocument.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+
+    public User toDomain(UserDocument document) {
+        if (document == null) return null;
+        
+        return User.builder()
+                .id(document.getId())
+                .name(document.getName())
+                .email(document.getEmail())
+                .username(document.getUsername())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .build();
+    }
+}
+```
+
+#### BookDocumentMapper
+
+```java
+@Component
+public class BookDocumentMapper {
+
+    public BookDocument toDocument(Book book) {
+        if (book == null) return null;
+        
+        return BookDocument.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .author(book.getAuthor())
+                .isbn(book.getIsbn())
+                .active(true)
+                .build();
+    }
+
+    public Book toDomain(BookDocument document) {
+        if (document == null) return null;
+        
+        return Book.builder()
+                .id(document.getId())
+                .title(document.getTitle())
+                .author(document.getAuthor())
+                .isbn(document.getIsbn())
+                .build();
+    }
 }
 ```
 
@@ -9423,19 +9686,27 @@ src/main/java/edu/eci/dosw/DOSW_Library/
     │   ├── UserRepository.java        ✅ 110+ líneas, 21 métodos
     │   └── BookRepository.java        ✅ 140+ líneas, 23 métodos
     │
-    ├── mongodb/                       (Capa NoSQL)
+    ├── mongodb/                       (Capa NoSQL) ← NUEVA (Commit 5dd2422)
     │   ├── document/
     │   │   ├── UserDocument.java      ✅ @Document
     │   │   ├── BookDocument.java      ✅ @Document
     │   │   ├── LoanDocument.java      ✅ @Document
     │   │   └── LoanHistoryDocument.java ✅ Embedded
     │   │
-    │   └── repository/
-    │       ├── UserRepository.java    ✅ extends MongoRepository
-    │       ├── BookRepository.java    ✅ extends MongoRepository
-    │       └── LoanRepository.java    ✅ extends MongoRepository, @Query
+    │   ├── repository/
+    │   │   ├── MongoLoanRepository.java    ✅ extends MongoRepository, @Query
+    │   │   ├── MongoUserRepository.java    ✅ extends MongoRepository, @Query
+    │   │   ├── MongoBookRepository.java    ✅ extends MongoRepository, @Query
+    │   │   ├── LoanRepositoryMongoImpl.java    ✅ @Profile("mongo"), 24 métodos
+    │   │   ├── UserRepositoryMongoImpl.java    ✅ @Profile("mongo"), 21 métodos
+    │   │   └── BookRepositoryMongoImpl.java    ✅ @Profile("mongo"), 23 métodos
+    │   │
+    │   └── mapper/
+    │       ├── LoanDocumentMapper.java  ✅ @Component
+    │       ├── UserDocumentMapper.java  ✅ @Component
+    │       └── BookDocumentMapper.java  ✅ @Component
     │
-    └── jpa/                           (Capa Relacional) ← NUEVA (Commit 2770d57)
+    └── jpa/                           (Capa Relacional) (Commit 2770d57)
         ├── repository/
         │   ├── JpaLoanRepository.java ✅ extends JpaRepository
         │   ├── JpaUserRepository.java ✅ extends JpaRepository
@@ -9450,7 +9721,7 @@ src/main/java/edu/eci/dosw/DOSW_Library/
             └── BookEntityMapper.java  ✅ @Component
 ```
 
-**Total Archivos + Líneas:** 32 archivos | ~2000 líneas | 3 capas (Genérica, MongoDB, JPA) | ✅ 0 errores
+**Total Archivos + Líneas:** 41 archivos | ~2884 líneas | 3 capas (Genérica, MongoDB, JPA) | ✅ 0 errores
 
 ---
 
@@ -9460,7 +9731,8 @@ src/main/java/edu/eci/dosw/DOSW_Library/
 |--------|-------|---------|----------|--------|-------------|
 | `2770d57` | D5 | +662 | 9 archivos nuevos | +662 | [feat] Crear capa JPA con 3 repositorios + 3 mappers |
 | `9596465` | D5 | +179 | README.md | +179 | [docs] Documentar implementaciones JPA en README |
-| (actual) | D5 | +XXX | README.md | +XXX | [docs] Agregar evidencia arquitectura multi-implementación |
+| `d22faa5` | D5 | +608 | README.md | +608 | [docs] Agregar evidencia arquitectura multi-implementación |
+| `5dd2422` | D5 | +884 | 9 archivos nuevos | +884 | [feat] Crear capa MongoDB con 3 repositorios + 3 mappers |
 
 **Meta compilación:** ✅ 0 warnings | ✅ 0 errores (verificado con `mvn clean compile`)
 
