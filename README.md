@@ -3525,68 +3525,155 @@ Problemas resueltos ✅:
 └──────────────────────────────────┘
 ```
 
+### Patrón de Inyección de Dependencias en Services ✅
+
+A partir de las interfaces genéricas de repositorio, los servicios se refactorizan para ser **agnósticos de la implementación**:
+
+```java
+@Service
+public class LoanService {
+    
+    // Injección de interfaz genérica (NO MongoRepository específico)
+    private final LoanRepository loanRepository;
+    private final BookService bookService;
+    private final UserService userService;
+    
+    // Constructor sin @Autowired (Spring inyecta automáticamente el único constructor)
+    public LoanService(LoanRepository loanRepository, 
+                       BookService bookService, 
+                       UserService userService) {
+        this.loanRepository = loanRepository;
+        this.bookService = bookService;
+        this.userService = userService;
+    }
+    
+    // Métodos de negocio usando interfaz genérica
+    public Loan createLoan(Loan loan) {
+        // Validaciones complejas de negocio
+        validateLoanRules(loan);
+        
+        // Persistencia agnóstica (funciona con MongoDB O JPA)
+        return loanRepository.save(loan);
+    }
+    
+    public List<Loan> getOverdueLoans() {
+        return loanRepository.findOverdueLoans(LocalDateTime.now());
+    }
+    
+    public void deleteLoan(String id) {
+        loanRepository.deleteById(id);
+    }
+}
+```
+
+**Ventajas de este patrón:**
+- ✅ **Desacoplamiento:** No depende de `MongoRepository` ni `JpaRepository` específicamente
+- ✅ **Testabilidad:** Fácil crear mock de `LoanRepository` para tests
+- ✅ **Mantenibilidad:** Cambiar de persistencia sin modificar lógica de negocio
+- ✅ **Extensibilidad:** Agregar nuevas implementaciones (MySQL, PostgreSQL, etc.) sin cambios en Service
+
 ### Ejemplo: UserService
 
 ```java
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class UserService {
     
+    // Interfaz genérica permitiendo múltiples implementaciones
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final UserPersistenceMapper userMapper;
+    
+    // Constructor sin @Autowired (Spring inyecta automáticamente)
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
     
     /**
      * Crear nuevo usuario con validaciones
      * - Email único
      * - Username único
-     * - Password codificado con BCrypt
      */
-    public UserDTO createUser(CreateUserDTO dto) {
+    public User registerUser(User user) {
         // VALIDACIÓN: verificar unicidad
-        if (userRepository.existsByEmail(dto.getEmail())) {
+        if (userRepository.existsByEmail(user.getEmail())) {
             throw new ConflictException("Email ya registrado");
         }
-        if (userRepository.existsByUsername(dto.getUsername())) {
+        if (userRepository.existsByUsername(user.getUsername())) {
             throw new ConflictException("Username ya registrado");
         }
         
-        // MAPEO: DTO → Entidad
-        User user = userMapper.toEntity(dto);
-        
-        // CODIFICACIÓN: password en BCrypt
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        
-        // PERSISTENCIA: guardar en BD
-        User saved = userRepository.save(user);
-        
-        // MAPEO: Entidad → DTO (sin password/credenciales)
-        return userMapper.toDTO(saved);
+        // PERSISTENCIA: guardar en BD (agnóstica de implementación)
+        return userRepository.save(user);
     }
     
     /**
      * Obtener usuario por email
-     * Lanzar excepción si no existe
      */
-    public UserDTO getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
             .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        return userMapper.toDTO(user);
     }
     
     /**
-     * Búsqueda flexible por nombre o email
-     * Usecase: Búsqueda en perfil de admin
+     * Búsqueda por rol (especialización)
      */
-    public List<UserDTO> searchUsers(String searchTerm) {
-        List<User> users = userRepository.searchByNameOrEmail(searchTerm);
-        return users.stream()
-            .map(userMapper::toDTO)
-            .collect(Collectors.toList());
+    public List<User> getAllLibrarians() {
+        return userRepository.findAllLibrarians();
     }
 }
 ```
+
+### Implementaciones de Repositorio
+
+Los servicios funcionan con cualquier implementación de las interfaces genéricas:
+
+#### Opción 1: MongoDB Repository (actual)
+
+```java
+@Repository
+public interface MongoUserRepository extends MongoRepository<UserDocument, String>, UserRepository {
+    // Implementa todos los métodos heredados de MongoRepository
+    // Inyecta en Services sin cambios de código
+}
+```
+
+#### Opción 2: JPA Repository (futura)
+
+```java
+@Repository
+public interface JpaUserRepository extends JpaRepository<User, String>, UserRepository {
+    // Implementa todos los métodos heredados de JpaRepository
+    // Mismo código en Services - solo cambia la implementación en @Bean
+}
+```
+
+**El service no cambia:**
+
+```java
+@Service
+public class UserService {
+    private final UserRepository repository;  // ← Interfaz genérica
+    
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+    
+    public User getUserByEmail(String email) {
+        return repository.findByEmail(email)  // ← Funciona con cualquier impl.
+            .orElseThrow(() -> new ResourceNotFoundException("..."));
+    }
+}
+```
+
+**Para cambiar de persistencia, solo actualizar la configuración:**
+
+```java
+// En @Configuration
+@Bean
+public UserRepository userRepository(JpaUserRepository jpaRepo) {
+    return jpaRepo;  // ← Before: return mongoUserRepository;
+}
+```
+
+---
 
 ### Reglas de Negocio Clave por Servicio
 
